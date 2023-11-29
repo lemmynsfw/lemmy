@@ -1,0 +1,29 @@
+name: Sync main branch
+
+on:
+  schedule:
+    - cron: "*/30 * * * *" # every 30 minutes
+  workflow_dispatch: # on button click
+
+env:
+  PERSONAL_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+  REMOTE_ORG: LemmyNet
+  REMOTE_REPO: lemmy
+  REMOTE_BRANCH: main
+  LOCAL_ORG: lemmynsfw
+  LOCAL_REPO: lemmy
+  LOCAL_BRANCH: main
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Sync main branch
+        uses: tgymnich/fork-sync@v1.8
+        with:
+          token: ${{ env.PERSONAL_TOKEN }}
+          owner: ${{ github.repository_owner }}
+          base: ${{ env.REMOTE_BRANCH }}
+          head: ${{ env.LOCAL_BRANCH }}
+          ignore_fail: true

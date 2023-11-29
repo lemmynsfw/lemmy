@@ -1,4 +1,4 @@
-name: Sync Fork
+name: Sync tags
 
 on:
   schedule:
@@ -17,17 +17,7 @@ env:
 jobs:
   sync:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Sync main branch
-        uses: tgymnich/fork-sync@v1.8
-        with:
-          token: ${{ env.PERSONAL_TOKEN }}
-          owner: ${{ github.repository_owner }}
-          base: ${{ env.REMOTE_BRANCH }}
-          head: ${{ env.LOCAL_BRANCH }}
-          ignore_fail: true
-
       - name: Sync tags
         uses: chachako/tags-sync@v1.0.1
         with:
