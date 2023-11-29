@@ -13,11 +13,11 @@ env:
   LOCAL_ORG: lemmynsfw
   LOCAL_REPO: lemmy
   LOCAL_BRANCH: main
+  POSTFIX: lemmynsfw
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-
     steps:
       - name: Sync main branch
         uses: tgymnich/fork-sync@v1.8
