@@ -30,11 +30,11 @@ jobs:
           git config user.name ${{ github.actor }}
           git config user.email ${{ github.actor }}@users.noreply.github.com
           git remote add upstream https://github.com/${{ env.REMOTE_ORG }}/${{ env.REMOTE_REPO }}.git
-          git fetch --tags --prune --prune-tags upstream
+          git fetch --tags --prune upstream
           LAST_TAGS=$(git tag -l --sort=-committerdate | grep -v ${{ env.POSTFIX }} | head -n 10)
           git diff --cached --full-index upstream/${{ env.REMOTE_BRANCH }} > /tmp/diff.patch
           for tag in $LAST_TAGS; do
-            if [ $(git tag -l "$tag"-${{ env.POSTFIX }}) ]; then
+            if [ $(git tag -l $tag-${{ env.POSTFIX }}) ]; then
               continue
             fi
             git checkout -b $tag $tag
