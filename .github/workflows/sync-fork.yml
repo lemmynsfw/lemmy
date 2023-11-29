@@ -9,32 +9,30 @@ env:
   PERSONAL_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
   REMOTE_ORG: LemmyNet
   REMOTE_REPO: lemmy
+  REMOTE_BRANCH: main
+  LOCAL_ORG: lemmynsfw
+  LOCAL_REPO: lemmy
+  LOCAL_BRANCH: main
 
 jobs:
   sync:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Fork main branch
+      - name: Sync main branch
         uses: tgymnich/fork-sync@v1.8
         with:
           token: ${{ env.PERSONAL_TOKEN }}
           owner: ${{github.repository_owner}}
-          base: main
-          head: main
+          base: ${{ env.REMOTE_BRANCH }}
+          head: ${{ env.LOCAL_BRANCH }}
           ignore_fail: true
-      - name: Checkout new tags to branches
-        id: checkout-tags
-        uses: chachako/checkout-tags@v1
-        with:
-          base: ${{ env.REMOTE_ORG }}/${{ env.REMOTE_REPO }}
-          overwrite: true
-          # don't include alpha versions
-          filter: ".*alpha.*"
-          token: ${{ env.PERSONAL_TOKEN }}
 
-      - name: Push all new branches
-        run: |
-          while read branch; do
-            git push origin $branch
-          done <<< "${{ steps.checkout-tags.outputs.branches }}"
+      - name: Sync tags
+        uses: chachako/tags-sync@v1
+        with:
+          base-repository: ${{ env.REMOTE_ORG }}/${{ env.REMOTE_REPO }}
+          apply-patch: https://github.com/${{env.REMOTE_ORG}}/${{env.REMOTE_REPO}}/compare/${{env.REMOTE_BRANCH}}...${{env.LOCAL_ORG}}:${{env.LOCAL_REPO}}:${{env.LOCAL_BRANCH}}.patch
+          patch-author: ${{ github.actor }}
+          patch-message: Apply NSFW patch
+          github-token: ${{ env.PERSONAL_TOKEN }}
