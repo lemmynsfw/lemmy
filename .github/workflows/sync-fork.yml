@@ -5,6 +5,10 @@ on:
     - cron: "*/30 * * * *" # every 30 minutes
   workflow_dispatch: # on button click
 
+env:
+  REMOTE_ORG: LemmyNet
+  REMOTE_REPO: lemmy
+
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -16,9 +20,13 @@ jobs:
           owner: lemmynsfw
           base: main
           head: main
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: main
       - name: Fetch all tags from upstream and prune
         run: |
-          git remote add upstream https://github.com/LemmyNet/lemmy.git
+          git remote add upstream https://github.com/${{ env.REMOTE_ORG }}/${{ env.REMOTE_REPO }}.git
           git fetch --tags --prune --prune-tags upstream
       - name: Push all tags to origin
         run: |
