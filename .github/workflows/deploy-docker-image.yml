@@ -30,11 +30,11 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ LOCAL_ORG }}
-          password: ${{ PERSONAL_TOKEN }}
+          username: ${{ env.LOCAL_ORG }}
+          password: ${{ env.PERSONAL_TOKEN }}
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ LOCAL_ORG }}/${{ LOCAL_REPO }}:${{ github.ref }}
+          tags: ghcr.io/${{ env.LOCAL_ORG }}/${{ env.LOCAL_REPO }}:${{ github.ref }}
