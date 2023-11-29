@@ -21,9 +21,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          repository: ${{ env.LOCAL_ORG }}/${{ env.LOCAL_REPO }}
-          path: ${{ env.LOCAL_REPO }}
-          ref: ${{ env.LOCAL_BRANCH }}
           fetch-depth: 0
           fetch-tags: true
       - run: |
