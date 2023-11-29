@@ -24,18 +24,19 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
       - run: |
-          echo $PWD
-          ls -al
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git config user.name "xaegreal"
-          git config user.email "xaeg@users.noreply.github.com"
+          git config user.name ${{ github.actor }}
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
           git remote add upstream https://github.com/${{ env.REMOTE_ORG }}/${{ env.REMOTE_REPO }}.git
           git fetch --tags --prune --prune-tags upstream
-          NON_PATCHED=$(git tag -l --sort=-committerdate | head -n 10 | grep -v "lemmynsfw")
-          for tag in $NON_PATCHED; do
+          LAST_TAGS=$(git tag -l --sort=-committerdate | grep -v "lemmynsfw" | head -n 10)
+          wget -O /tmp/diff.patch https://github.com/${REMOTE_ORG}/${REMOTE_REPO}/compare/${REMOTE_BRANCH}...${LOCAL_ORG}:${LOCAL_REPO}:${LOCAL_BRANCH}.patch
+          for tag in $LAST_TAGS; do
+            if [ $(git tag -l "$tag"-lemmynsfw) ]; then
+              continue
+            fi
             git checkout -b $tag $tag
-            wget -O diff.patch https://github.com/${REMOTE_ORG}/${REMOTE_REPO}/compare/${REMOTE_BRANCH}...${LOCAL_ORG}:${LOCAL_REPO}:${LOCAL_BRANCH}.patch
-            git apply diff.patch
+            git apply --reverse /tmp/diff.patch
             git commit -m "Apply patch from ${REMOTE_ORG}/${REMOTE_REPO}#${tag}"
             git tag $tag-lemmynsfw
             git push origin tag $tag-lemmynsfw
