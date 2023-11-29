@@ -2,7 +2,7 @@ name: Sync tags
 
 on:
   schedule:
-    - cron: "*/30 * * * *" # every 30 minutes
+    - cron: "*/60 * * * *" # every 1 hour
   workflow_dispatch: # on button click
 
 env:

@@ -2,7 +2,7 @@ name: Sync main branch
 
 on:
   schedule:
-    - cron: "*/30 * * * *" # every 30 minutes
+    - cron: "*/120 * * * *" # every 2 hours
   workflow_dispatch: # on button click
 
 env:
