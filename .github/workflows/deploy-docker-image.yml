@@ -3,11 +3,7 @@ name: Deploy Docker image
 on:
   push:
     tags:
-      - "*"
-  create:
-    tags:
-      - "*"
-  workflow_dispatch:
+      - "**"
 
 env:
   PERSONAL_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
