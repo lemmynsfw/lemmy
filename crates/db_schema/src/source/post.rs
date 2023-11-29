@@ -1,6 +1,7 @@
 use crate::newtypes::{CommunityId, DbUrl, LanguageId, PersonId, PostId};
 #[cfg(feature = "full")]
 use crate::schema::{post, post_like, post_read, post_saved};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 #[cfg(feature = "full")]
@@ -9,9 +10,10 @@ use typed_builder::TypedBuilder;
 
 #[skip_serializing_none]
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "full", derive(Queryable, Identifiable, TS))]
+#[cfg_attr(feature = "full", derive(Queryable, Selectable, Identifiable, TS))]
 #[cfg_attr(feature = "full", diesel(table_name = post))]
 #[cfg_attr(feature = "full", ts(export))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 /// A post.
 pub struct Post {
   pub id: PostId,
@@ -27,8 +29,8 @@ pub struct Post {
   pub removed: bool,
   /// Whether the post is locked.
   pub locked: bool,
-  pub published: chrono::NaiveDateTime,
-  pub updated: Option<chrono::NaiveDateTime>,
+  pub published: DateTime<Utc>,
+  pub updated: Option<DateTime<Utc>>,
   /// Whether the post is deleted.
   pub deleted: bool,
   /// Whether the post is NSFW.
@@ -71,8 +73,8 @@ pub struct PostInsertForm {
   pub body: Option<String>,
   pub removed: Option<bool>,
   pub locked: Option<bool>,
-  pub updated: Option<chrono::NaiveDateTime>,
-  pub published: Option<chrono::NaiveDateTime>,
+  pub updated: Option<DateTime<Utc>>,
+  pub published: Option<DateTime<Utc>>,
   pub deleted: Option<bool>,
   pub embed_title: Option<String>,
   pub embed_description: Option<String>,
@@ -85,8 +87,7 @@ pub struct PostInsertForm {
   pub featured_local: Option<bool>,
 }
 
-#[derive(Debug, Clone, TypedBuilder)]
-#[builder(field_defaults(default))]
+#[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "full", derive(AsChangeset))]
 #[cfg_attr(feature = "full", diesel(table_name = post))]
 pub struct PostUpdateForm {
@@ -96,8 +97,8 @@ pub struct PostUpdateForm {
   pub body: Option<Option<String>>,
   pub removed: Option<bool>,
   pub locked: Option<bool>,
-  pub published: Option<chrono::NaiveDateTime>,
-  pub updated: Option<Option<chrono::NaiveDateTime>>,
+  pub published: Option<DateTime<Utc>>,
+  pub updated: Option<Option<DateTime<Utc>>>,
   pub deleted: Option<bool>,
   pub embed_title: Option<Option<String>>,
   pub embed_description: Option<Option<String>>,
@@ -111,15 +112,19 @@ pub struct PostUpdateForm {
 }
 
 #[derive(PartialEq, Eq, Debug)]
-#[cfg_attr(feature = "full", derive(Identifiable, Queryable, Associations))]
+#[cfg_attr(
+  feature = "full",
+  derive(Identifiable, Queryable, Selectable, Associations)
+)]
 #[cfg_attr(feature = "full", diesel(belongs_to(crate::source::post::Post)))]
 #[cfg_attr(feature = "full", diesel(table_name = post_like))]
+#[cfg_attr(feature = "full", diesel(primary_key(person_id, post_id)))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 pub struct PostLike {
-  pub id: i32,
   pub post_id: PostId,
   pub person_id: PersonId,
   pub score: i16,
-  pub published: chrono::NaiveDateTime,
+  pub published: DateTime<Utc>,
 }
 
 #[derive(Clone)]
@@ -132,14 +137,18 @@ pub struct PostLikeForm {
 }
 
 #[derive(PartialEq, Eq, Debug)]
-#[cfg_attr(feature = "full", derive(Identifiable, Queryable, Associations))]
+#[cfg_attr(
+  feature = "full",
+  derive(Identifiable, Queryable, Selectable, Associations)
+)]
 #[cfg_attr(feature = "full", diesel(belongs_to(crate::source::post::Post)))]
 #[cfg_attr(feature = "full", diesel(table_name = post_saved))]
+#[cfg_attr(feature = "full", diesel(primary_key(post_id, person_id)))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 pub struct PostSaved {
-  pub id: i32,
   pub post_id: PostId,
   pub person_id: PersonId,
-  pub published: chrono::NaiveDateTime,
+  pub published: DateTime<Utc>,
 }
 
 #[cfg_attr(feature = "full", derive(Insertable, AsChangeset))]
@@ -150,19 +159,23 @@ pub struct PostSavedForm {
 }
 
 #[derive(PartialEq, Eq, Debug)]
-#[cfg_attr(feature = "full", derive(Identifiable, Queryable, Associations))]
+#[cfg_attr(
+  feature = "full",
+  derive(Identifiable, Queryable, Selectable, Associations)
+)]
 #[cfg_attr(feature = "full", diesel(belongs_to(crate::source::post::Post)))]
 #[cfg_attr(feature = "full", diesel(table_name = post_read))]
+#[cfg_attr(feature = "full", diesel(primary_key(post_id, person_id)))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 pub struct PostRead {
-  pub id: i32,
   pub post_id: PostId,
   pub person_id: PersonId,
-  pub published: chrono::NaiveDateTime,
+  pub published: DateTime<Utc>,
 }
 
 #[cfg_attr(feature = "full", derive(Insertable, AsChangeset))]
 #[cfg_attr(feature = "full", diesel(table_name = post_read))]
-pub struct PostReadForm {
+pub(crate) struct PostReadForm {
   pub post_id: PostId,
   pub person_id: PersonId,
 }

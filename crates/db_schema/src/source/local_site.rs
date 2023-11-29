@@ -5,6 +5,7 @@ use crate::{
   ListingType,
   RegistrationMode,
 };
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 #[cfg(feature = "full")]
@@ -12,10 +13,11 @@ use ts_rs::TS;
 use typed_builder::TypedBuilder;
 
 #[skip_serializing_none]
-#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Default)]
 #[cfg_attr(feature = "full", derive(Queryable, Identifiable, TS))]
 #[cfg_attr(feature = "full", diesel(table_name = local_site))]
 #[cfg_attr(feature = "full", diesel(belongs_to(crate::source::site::Site)))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// The local site.
 pub struct LocalSite {
@@ -54,11 +56,14 @@ pub struct LocalSite {
   pub captcha_enabled: bool,
   /// The captcha difficulty.
   pub captcha_difficulty: String,
-  pub published: chrono::NaiveDateTime,
-  pub updated: Option<chrono::NaiveDateTime>,
+  pub published: DateTime<Utc>,
+  pub updated: Option<DateTime<Utc>>,
   pub registration_mode: RegistrationMode,
   /// Whether to email admins on new reports.
   pub reports_email_admins: bool,
+  /// Whether to sign outgoing Activitypub fetches with private key of local instance. Some
+  /// Fediverse instances and platforms require this.
+  pub federation_signed_fetch: bool,
 }
 
 #[derive(Clone, TypedBuilder)]
@@ -87,10 +92,10 @@ pub struct LocalSiteInsertForm {
   pub captcha_difficulty: Option<String>,
   pub registration_mode: Option<RegistrationMode>,
   pub reports_email_admins: Option<bool>,
+  pub federation_signed_fetch: Option<bool>,
 }
 
-#[derive(Clone, TypedBuilder)]
-#[builder(field_defaults(default))]
+#[derive(Clone, Default)]
 #[cfg_attr(feature = "full", derive(AsChangeset))]
 #[cfg_attr(feature = "full", diesel(table_name = local_site))]
 pub struct LocalSiteUpdateForm {
@@ -113,5 +118,6 @@ pub struct LocalSiteUpdateForm {
   pub captcha_difficulty: Option<String>,
   pub registration_mode: Option<RegistrationMode>,
   pub reports_email_admins: Option<bool>,
-  pub updated: Option<Option<chrono::NaiveDateTime>>,
+  pub updated: Option<Option<DateTime<Utc>>>,
+  pub federation_signed_fetch: Option<bool>,
 }

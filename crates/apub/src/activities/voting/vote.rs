@@ -4,7 +4,7 @@ use crate::{
     verify_person_in_community,
     voting::{vote_comment, vote_post},
   },
-  insert_activity,
+  insert_received_activity,
   objects::{community::ApubCommunity, person::ApubPerson},
   protocol::{
     activities::voting::vote::{Vote, VoteType},
@@ -18,7 +18,7 @@ use activitypub_federation::{
   traits::{ActivityHandler, Actor},
 };
 use anyhow::anyhow;
-use lemmy_api_common::context::LemmyContext;
+use lemmy_api_common::{context::LemmyContext, utils::check_bot_account};
 use lemmy_db_schema::source::local_site::LocalSite;
 use lemmy_utils::error::LemmyError;
 use url::Url;
@@ -56,23 +56,27 @@ impl ActivityHandler for Vote {
 
   #[tracing::instrument(skip_all)]
   async fn verify(&self, context: &Data<LemmyContext>) -> Result<(), LemmyError> {
+    insert_received_activity(&self.id, context).await?;
     let community = self.community(context).await?;
     verify_person_in_community(&self.actor, &community, context).await?;
-    let enable_downvotes = LocalSite::read(context.pool())
+    let enable_downvotes = LocalSite::read(&mut context.pool())
       .await
       .map(|l| l.enable_downvotes)
       .unwrap_or(true);
     if self.kind == VoteType::Dislike && !enable_downvotes {
-      return Err(anyhow!("Downvotes disabled").into());
+      Err(anyhow!("Downvotes disabled").into())
+    } else {
+      Ok(())
     }
-    Ok(())
   }
 
   #[tracing::instrument(skip_all)]
   async fn receive(self, context: &Data<LemmyContext>) -> Result<(), LemmyError> {
-    insert_activity(&self.id, &self, false, true, context).await?;
     let actor = self.actor.dereference(context).await?;
     let object = self.object.dereference(context).await?;
+
+    check_bot_account(&actor.0)?;
+
     match object {
       PostOrComment::Post(p) => vote_post(&self.kind, actor, &p, context).await,
       PostOrComment::Comment(c) => vote_comment(&self.kind, actor, &c, context).await,

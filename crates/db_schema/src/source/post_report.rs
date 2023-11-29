@@ -1,6 +1,7 @@
 use crate::newtypes::{DbUrl, PersonId, PostId, PostReportId};
 #[cfg(feature = "full")]
 use crate::schema::post_report;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 #[cfg(feature = "full")]
@@ -8,9 +9,13 @@ use ts_rs::TS;
 
 #[skip_serializing_none]
 #[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(feature = "full", derive(Identifiable, Queryable, Associations, TS))]
+#[cfg_attr(
+  feature = "full",
+  derive(Identifiable, Queryable, Selectable, Associations, TS)
+)]
 #[cfg_attr(feature = "full", diesel(belongs_to(crate::source::post::Post)))] // Is this the right assoc?
 #[cfg_attr(feature = "full", diesel(table_name = post_report))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// A post report.
 pub struct PostReport {
@@ -26,11 +31,11 @@ pub struct PostReport {
   pub reason: String,
   pub resolved: bool,
   pub resolver_id: Option<PersonId>,
-  pub published: chrono::NaiveDateTime,
-  pub updated: Option<chrono::NaiveDateTime>,
+  pub published: DateTime<Utc>,
+  pub updated: Option<DateTime<Utc>>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 #[cfg_attr(feature = "full", derive(Insertable, AsChangeset))]
 #[cfg_attr(feature = "full", diesel(table_name = post_report))]
 pub struct PostReportForm {

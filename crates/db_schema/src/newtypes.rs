@@ -86,12 +86,6 @@ pub struct PersonBlockId(i32);
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize, Default)]
 #[cfg_attr(feature = "full", derive(DieselNewType, TS))]
 #[cfg_attr(feature = "full", ts(export))]
-/// The community block id.
-pub struct CommunityBlockId(i32);
-
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize, Default)]
-#[cfg_attr(feature = "full", derive(DieselNewType, TS))]
-#[cfg_attr(feature = "full", ts(export))]
 /// The comment report id.
 pub struct CommentReportId(i32);
 
@@ -120,18 +114,6 @@ pub struct SiteId(i32);
 pub struct LanguageId(pub i32);
 
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize, Default)]
-#[cfg_attr(feature = "full", derive(DieselNewType))]
-pub struct LocalUserLanguageId(pub i32);
-
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize, Default)]
-#[cfg_attr(feature = "full", derive(DieselNewType))]
-pub struct SiteLanguageId(pub i32);
-
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize, Default)]
-#[cfg_attr(feature = "full", derive(DieselNewType))]
-pub struct CommunityLanguageId(pub i32);
-
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize, Default)]
 #[cfg_attr(feature = "full", derive(DieselNewType, TS))]
 #[cfg_attr(feature = "full", ts(export))]
 /// The comment reply id.
@@ -142,6 +124,13 @@ pub struct CommentReplyId(i32);
 #[cfg_attr(feature = "full", ts(export))]
 /// The instance id.
 pub struct InstanceId(i32);
+
+#[derive(
+  Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize, Default, PartialOrd, Ord,
+)]
+#[cfg_attr(feature = "full", derive(DieselNewType, TS))]
+#[cfg_attr(feature = "full", ts(export))]
+pub struct ActivityId(pub i64);
 
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize, Default)]
 #[cfg_attr(feature = "full", derive(DieselNewType, TS))]
@@ -162,7 +151,7 @@ pub struct CustomEmojiId(i32);
 pub struct LtreeDef(pub String);
 
 #[repr(transparent)]
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug, Hash)]
 #[cfg_attr(feature = "full", derive(AsExpression, FromSqlRow))]
 #[cfg_attr(feature = "full", diesel(sql_type = diesel::sql_types::Text))]
 pub struct DbUrl(pub(crate) Box<Url>);
@@ -247,5 +236,11 @@ impl TS for DbUrl {
   }
   fn transparent() -> bool {
     true
+  }
+}
+
+impl InstanceId {
+  pub fn inner(self) -> i32 {
+    self.0
   }
 }

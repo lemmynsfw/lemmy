@@ -1,35 +1,41 @@
-use crate::Perform;
-use actix_web::web::Data;
-use lemmy_api_common::{
-  context::LemmyContext,
-  post::{MarkPostAsRead, PostResponse},
-  utils::{local_user_view_from_jwt, mark_post_as_read, mark_post_as_unread},
-};
-use lemmy_db_views::structs::PostView;
-use lemmy_utils::error::LemmyError;
+use actix_web::web::{Data, Json};
+use lemmy_api_common::{context::LemmyContext, post::MarkPostAsRead, SuccessResponse};
+use lemmy_db_schema::source::post::PostRead;
+use lemmy_db_views::structs::LocalUserView;
+use lemmy_utils::error::{LemmyError, LemmyErrorExt, LemmyErrorType, MAX_API_PARAM_ELEMENTS};
+use std::collections::HashSet;
 
-#[async_trait::async_trait(?Send)]
-impl Perform for MarkPostAsRead {
-  type Response = PostResponse;
-
-  #[tracing::instrument(skip(context))]
-  async fn perform(&self, context: &Data<LemmyContext>) -> Result<Self::Response, LemmyError> {
-    let data = self;
-    let local_user_view = local_user_view_from_jwt(&data.auth, context).await?;
-
-    let post_id = data.post_id;
-    let person_id = local_user_view.person.id;
-
-    // Mark the post as read / unread
-    if data.read {
-      mark_post_as_read(person_id, post_id, context.pool()).await?;
-    } else {
-      mark_post_as_unread(person_id, post_id, context.pool()).await?;
-    }
-
-    // Fetch it
-    let post_view = PostView::read(context.pool(), post_id, Some(person_id), None).await?;
-
-    Ok(Self::Response { post_view })
+#[tracing::instrument(skip(context))]
+pub async fn mark_post_as_read(
+  data: Json<MarkPostAsRead>,
+  context: Data<LemmyContext>,
+  local_user_view: LocalUserView,
+) -> Result<Json<SuccessResponse>, LemmyError> {
+  let mut post_ids = HashSet::new();
+  if let Some(post_ids_) = &data.post_ids {
+    post_ids.extend(post_ids_.iter().cloned());
   }
+
+  if let Some(post_id) = data.post_id {
+    post_ids.insert(post_id);
+  }
+
+  if post_ids.len() > MAX_API_PARAM_ELEMENTS {
+    Err(LemmyErrorType::TooManyItems)?;
+  }
+
+  let person_id = local_user_view.person.id;
+
+  // Mark the post as read / unread
+  if data.read {
+    PostRead::mark_as_read(&mut context.pool(), post_ids, person_id)
+      .await
+      .with_lemmy_type(LemmyErrorType::CouldntMarkPostAsRead)?;
+  } else {
+    PostRead::mark_as_unread(&mut context.pool(), post_ids, person_id)
+      .await
+      .with_lemmy_type(LemmyErrorType::CouldntMarkPostAsRead)?;
+  }
+
+  Ok(Json(SuccessResponse::default()))
 }

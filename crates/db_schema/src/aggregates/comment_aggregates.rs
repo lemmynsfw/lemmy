@@ -8,19 +8,21 @@ use diesel::{result::Error, ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
 
 impl CommentAggregates {
-  pub async fn read(pool: &DbPool, comment_id: CommentId) -> Result<Self, Error> {
+  pub async fn read(pool: &mut DbPool<'_>, comment_id: CommentId) -> Result<Self, Error> {
     let conn = &mut get_conn(pool).await?;
     comment_aggregates::table
-      .filter(comment_aggregates::comment_id.eq(comment_id))
+      .find(comment_id)
       .first::<Self>(conn)
       .await
   }
 
-  pub async fn update_hot_rank(pool: &DbPool, comment_id: CommentId) -> Result<Self, Error> {
+  pub async fn update_hot_rank(
+    pool: &mut DbPool<'_>,
+    comment_id: CommentId,
+  ) -> Result<Self, Error> {
     let conn = &mut get_conn(pool).await?;
 
-    diesel::update(comment_aggregates::table)
-      .filter(comment_aggregates::comment_id.eq(comment_id))
+    diesel::update(comment_aggregates::table.find(comment_id))
       .set(comment_aggregates::hot_rank.eq(hot_rank(
         comment_aggregates::score,
         comment_aggregates::published,
@@ -32,6 +34,9 @@ impl CommentAggregates {
 
 #[cfg(test)]
 mod tests {
+  #![allow(clippy::unwrap_used)]
+  #![allow(clippy::indexing_slicing)]
+
   use crate::{
     aggregates::comment_aggregates::CommentAggregates,
     source::{
@@ -50,6 +55,7 @@ mod tests {
   #[serial]
   async fn test_crud() {
     let pool = &build_db_pool_for_tests().await;
+    let pool = &mut pool.into();
 
     let inserted_instance = Instance::read_or_create(pool, "my_domain.tld".to_string())
       .await

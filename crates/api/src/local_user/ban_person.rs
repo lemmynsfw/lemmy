@@ -1,81 +1,88 @@
-use crate::Perform;
-use actix_web::web::Data;
+use activitypub_federation::config::Data;
+use actix_web::web::Json;
 use lemmy_api_common::{
   context::LemmyContext,
   person::{BanPerson, BanPersonResponse},
-  utils::{is_admin, local_user_view_from_jwt, remove_user_data},
+  send_activity::{ActivityChannel, SendActivityData},
+  utils::{check_expire_time, is_admin, remove_user_data},
 };
 use lemmy_db_schema::{
   source::{
+    login_token::LoginToken,
     moderator::{ModBan, ModBanForm},
     person::{Person, PersonUpdateForm},
   },
   traits::Crud,
 };
+use lemmy_db_views::structs::LocalUserView;
 use lemmy_db_views_actor::structs::PersonView;
 use lemmy_utils::{
-  error::LemmyError,
-  utils::{time::naive_from_unix, validation::is_valid_body_field},
+  error::{LemmyError, LemmyErrorExt, LemmyErrorType},
+  utils::validation::is_valid_body_field,
 };
 
-#[async_trait::async_trait(?Send)]
-impl Perform for BanPerson {
-  type Response = BanPersonResponse;
+#[tracing::instrument(skip(context))]
+pub async fn ban_from_site(
+  data: Json<BanPerson>,
+  context: Data<LemmyContext>,
+  local_user_view: LocalUserView,
+) -> Result<Json<BanPersonResponse>, LemmyError> {
+  // Make sure user is an admin
+  is_admin(&local_user_view)?;
 
-  #[tracing::instrument(skip(context))]
-  async fn perform(&self, context: &Data<LemmyContext>) -> Result<BanPersonResponse, LemmyError> {
-    let data: &BanPerson = self;
-    let local_user_view = local_user_view_from_jwt(&data.auth, context).await?;
+  is_valid_body_field(&data.reason, false)?;
 
-    // Make sure user is an admin
-    is_admin(&local_user_view)?;
+  let expires = check_expire_time(data.expires)?;
 
-    is_valid_body_field(&data.reason, false)?;
-
-    let ban = data.ban;
-    let banned_person_id = data.person_id;
-    let expires = data.expires.map(naive_from_unix);
-
-    let person = Person::update(
-      context.pool(),
-      banned_person_id,
-      &PersonUpdateForm::builder()
-        .banned(Some(ban))
-        .ban_expires(Some(expires))
-        .build(),
-    )
-    .await
-    .map_err(|e| LemmyError::from_error_message(e, "couldnt_update_user"))?;
-
-    // Remove their data if that's desired
-    let remove_data = data.remove_data.unwrap_or(false);
-    if remove_data {
-      remove_user_data(
-        person.id,
-        context.pool(),
-        context.settings(),
-        context.client(),
-      )
-      .await?;
-    }
-
-    // Mod tables
-    let form = ModBanForm {
-      mod_person_id: local_user_view.person.id,
-      other_person_id: data.person_id,
-      reason: data.reason.clone(),
+  let person = Person::update(
+    &mut context.pool(),
+    data.person_id,
+    &PersonUpdateForm {
       banned: Some(data.ban),
-      expires,
-    };
+      ban_expires: Some(expires),
+      ..Default::default()
+    },
+  )
+  .await
+  .with_lemmy_type(LemmyErrorType::CouldntUpdateUser)?;
 
-    ModBan::create(context.pool(), &form).await?;
-
-    let person_id = data.person_id;
-    let person_view = PersonView::read(context.pool(), person_id).await?;
-
-    Ok(BanPersonResponse {
-      person_view,
-      banned: data.ban,
-    })
+  // if its a local user, invalidate logins
+  let local_user = LocalUserView::read_person(&mut context.pool(), data.person_id).await;
+  if let Ok(local_user) = local_user {
+    LoginToken::invalidate_all(&mut context.pool(), local_user.local_user.id).await?;
   }
+
+  // Remove their data if that's desired
+  let remove_data = data.remove_data.unwrap_or(false);
+  if remove_data {
+    remove_user_data(person.id, &context).await?;
+  }
+
+  // Mod tables
+  let form = ModBanForm {
+    mod_person_id: local_user_view.person.id,
+    other_person_id: data.person_id,
+    reason: data.reason.clone(),
+    banned: Some(data.ban),
+    expires,
+  };
+
+  ModBan::create(&mut context.pool(), &form).await?;
+
+  let person_view = PersonView::read(&mut context.pool(), data.person_id).await?;
+
+  ActivityChannel::submit_activity(
+    SendActivityData::BanFromSite(
+      local_user_view.person,
+      person_view.person.clone(),
+      data.0.clone(),
+    ),
+    &context,
+  )
+  .await?;
+
+  Ok(Json(BanPersonResponse {
+    person_view,
+    banned: data.ban,
+  }))
 }

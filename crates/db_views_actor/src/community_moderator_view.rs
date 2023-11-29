@@ -1,50 +1,79 @@
 use crate::structs::CommunityModeratorView;
-use diesel::{result::Error, ExpressionMethods, QueryDsl};
+use diesel::{dsl::exists, result::Error, select, ExpressionMethods, QueryDsl};
 use diesel_async::RunQueryDsl;
 use lemmy_db_schema::{
   newtypes::{CommunityId, PersonId},
   schema::{community, community_moderator, person},
-  source::{community::Community, person::Person},
-  traits::JoinView,
   utils::{get_conn, DbPool},
 };
 
-type CommunityModeratorViewTuple = (Community, Person);
-
 impl CommunityModeratorView {
-  pub async fn for_community(pool: &DbPool, community_id: CommunityId) -> Result<Vec<Self>, Error> {
+  pub async fn is_community_moderator(
+    pool: &mut DbPool<'_>,
+    find_community_id: CommunityId,
+    find_person_id: PersonId,
+  ) -> Result<bool, Error> {
+    use lemmy_db_schema::schema::community_moderator::dsl::{
+      community_id,
+      community_moderator,
+      person_id,
+    };
     let conn = &mut get_conn(pool).await?;
-    let res = community_moderator::table
-      .inner_join(community::table)
-      .inner_join(person::table)
-      .select((community::all_columns, person::all_columns))
-      .filter(community_moderator::community_id.eq(community_id))
-      .load::<CommunityModeratorViewTuple>(conn)
-      .await?;
-
-    Ok(res.into_iter().map(Self::from_tuple).collect())
+    select(exists(
+      community_moderator
+        .filter(community_id.eq(find_community_id))
+        .filter(person_id.eq(find_person_id)),
+    ))
+    .get_result::<bool>(conn)
+    .await
   }
 
-  pub async fn for_person(pool: &DbPool, person_id: PersonId) -> Result<Vec<Self>, Error> {
+  pub(crate) async fn is_community_moderator_of_any(
+    pool: &mut DbPool<'_>,
+    find_person_id: PersonId,
+  ) -> Result<bool, Error> {
+    use lemmy_db_schema::schema::community_moderator::dsl::{community_moderator, person_id};
     let conn = &mut get_conn(pool).await?;
-    let res = community_moderator::table
+    select(exists(
+      community_moderator.filter(person_id.eq(find_person_id)),
+    ))
+    .get_result::<bool>(conn)
+    .await
+  }
+
+  pub async fn for_community(
+    pool: &mut DbPool<'_>,
+    community_id: CommunityId,
+  ) -> Result<Vec<Self>, Error> {
+    let conn = &mut get_conn(pool).await?;
+    community_moderator::table
       .inner_join(community::table)
       .inner_join(person::table)
+      .filter(community_moderator::community_id.eq(community_id))
       .select((community::all_columns, person::all_columns))
+      .order_by(community_moderator::published)
+      .load::<CommunityModeratorView>(conn)
+      .await
+  }
+
+  pub async fn for_person(pool: &mut DbPool<'_>, person_id: PersonId) -> Result<Vec<Self>, Error> {
+    let conn = &mut get_conn(pool).await?;
+    community_moderator::table
+      .inner_join(community::table)
+      .inner_join(person::table)
       .filter(community_moderator::person_id.eq(person_id))
       .filter(community::deleted.eq(false))
       .filter(community::removed.eq(false))
-      .load::<CommunityModeratorViewTuple>(conn)
-      .await?;
-
-    Ok(res.into_iter().map(Self::from_tuple).collect())
+      .select((community::all_columns, person::all_columns))
+      .load::<CommunityModeratorView>(conn)
+      .await
   }
 
   /// Finds all communities first mods / creators
   /// Ideally this should be a group by, but diesel doesn't support it yet
-  pub async fn get_community_first_mods(pool: &DbPool) -> Result<Vec<Self>, Error> {
+  pub async fn get_community_first_mods(pool: &mut DbPool<'_>) -> Result<Vec<Self>, Error> {
     let conn = &mut get_conn(pool).await?;
-    let res = community_moderator::table
+    community_moderator::table
       .inner_join(community::table)
       .inner_join(person::table)
       .select((community::all_columns, person::all_columns))
@@ -55,19 +84,7 @@ impl CommunityModeratorView {
         community_moderator::community_id,
         community_moderator::person_id,
       ))
-      .load::<CommunityModeratorViewTuple>(conn)
-      .await?;
-
-    Ok(res.into_iter().map(Self::from_tuple).collect())
-  }
-}
-
-impl JoinView for CommunityModeratorView {
-  type JoinTuple = CommunityModeratorViewTuple;
-  fn from_tuple(a: Self::JoinTuple) -> Self {
-    Self {
-      community: a.0,
-      moderator: a.1,
-    }
+      .load::<CommunityModeratorView>(conn)
+      .await
   }
 }

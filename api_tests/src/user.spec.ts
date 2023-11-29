@@ -12,18 +12,18 @@ import {
   createComment,
   resolveBetaCommunity,
   deleteUser,
-  resolvePost,
-  API,
-  resolveComment,
   saveUserSettingsFederated,
   setupLogins,
+  alphaUrl,
+  saveUserSettings,
+  getPost,
+  getComments,
+  fetchFunction,
 } from "./shared";
-import { LemmyHttp } from "lemmy-js-client";
+import { LemmyHttp, SaveUserSettings } from "lemmy-js-client";
 import { GetPosts } from "lemmy-js-client/dist/types/GetPosts";
 
-beforeAll(async () => {
-  await setupLogins();
-});
+beforeAll(setupLogins);
 
 let apShortname: string;
 
@@ -38,11 +38,9 @@ function assertUserFederation(userOne?: PersonView, userTwo?: PersonView) {
 }
 
 test("Create user", async () => {
-  let userRes = await registerUser(alpha);
-  expect(userRes.jwt).toBeDefined();
-  alpha.auth = userRes.jwt ?? "";
+  let user = await registerUser(alpha, alphaUrl);
 
-  let site = await getSite(alpha);
+  let site = await getSite(user);
   expect(site.my_user).toBeDefined();
   if (!site.my_user) {
     throw "Missing site user";
@@ -55,15 +53,19 @@ test("Set some user settings, check that they are federated", async () => {
   let alphaPerson = (await resolvePerson(alpha, apShortname)).person;
   let betaPerson = (await resolvePerson(beta, apShortname)).person;
   assertUserFederation(alphaPerson, betaPerson);
+
+  // Catches a bug where when only the person or local_user changed
+  let form: SaveUserSettings = {
+    theme: "test",
+  };
+  await saveUserSettings(beta, form);
+
+  let site = await getSite(beta);
+  expect(site.my_user?.local_user_view.local_user.theme).toBe("test");
 });
 
 test("Delete user", async () => {
-  let userRes = await registerUser(alpha);
-  expect(userRes.jwt).toBeDefined();
-  let user: API = {
-    client: alpha.client,
-    auth: userRes.jwt ?? "",
-  };
+  let user = await registerUser(alpha, alphaUrl);
 
   // make a local post and comment
   let alphaCommunity = (await resolveCommunity(user, "!main@lemmy-alpha:8541"))
@@ -92,24 +94,48 @@ test("Delete user", async () => {
 
   await deleteUser(user);
 
-  expect((await resolvePost(alpha, localPost)).post).toBeUndefined();
-  expect((await resolveComment(alpha, localComment)).comment).toBeUndefined();
-  expect((await resolvePost(alpha, remotePost)).post).toBeUndefined();
-  expect((await resolveComment(alpha, remoteComment)).comment).toBeUndefined();
+  // check that posts and comments are marked as deleted on other instances.
+  // use get methods to avoid refetching from origin instance
+  expect((await getPost(alpha, localPost.id)).post_view.post.deleted).toBe(
+    true,
+  );
+  expect((await getPost(alpha, remotePost.id)).post_view.post.deleted).toBe(
+    true,
+  );
+  expect(
+    (await getComments(alpha, localComment.post_id)).comments[0].comment
+      .deleted,
+  ).toBe(true);
+  expect(
+    (await getComments(alpha, remoteComment.post_id)).comments[0].comment
+      .deleted,
+  ).toBe(true);
 });
 
 test("Requests with invalid auth should be treated as unauthenticated", async () => {
-  let invalid_auth: API = {
-    client: new LemmyHttp("http://127.0.0.1:8541"),
-    auth: "invalid",
-  };
+  let invalid_auth = new LemmyHttp(alphaUrl, {
+    headers: { Authorization: "Bearer foobar" },
+    fetchFunction,
+  });
   let site = await getSite(invalid_auth);
   expect(site.my_user).toBeUndefined();
   expect(site.site_view).toBeDefined();
 
-  let form: GetPosts = {
-    auth: "invalid",
-  };
-  let posts = invalid_auth.client.getPosts(form);
+  let form: GetPosts = {};
+  let posts = invalid_auth.getPosts(form);
   expect((await posts).posts).toBeDefined();
+});
+
+test("Create user with Arabic name", async () => {
+  let user = await registerUser(alpha, alphaUrl, "تجريب");
+
+  let site = await getSite(user);
+  expect(site.my_user).toBeDefined();
+  if (!site.my_user) {
+    throw "Missing site user";
+  }
+  apShortname = `@${site.my_user.local_user_view.person.name}@lemmy-alpha:8541`;
+
+  let alphaPerson = (await resolvePerson(alpha, apShortname)).person;
+  expect(alphaPerson).toBeDefined();
 });

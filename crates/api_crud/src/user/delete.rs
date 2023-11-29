@@ -1,32 +1,46 @@
-use crate::PerformCrud;
-use actix_web::web::Data;
+use activitypub_federation::config::Data;
+use actix_web::web::Json;
 use bcrypt::verify;
 use lemmy_api_common::{
   context::LemmyContext,
-  person::{DeleteAccount, DeleteAccountResponse},
-  utils::local_user_view_from_jwt,
+  person::DeleteAccount,
+  send_activity::{ActivityChannel, SendActivityData},
+  utils::purge_user_account,
+  SuccessResponse,
 };
-use lemmy_utils::error::LemmyError;
+use lemmy_db_schema::source::{login_token::LoginToken, person::Person};
+use lemmy_db_views::structs::LocalUserView;
+use lemmy_utils::error::{LemmyErrorType, LemmyResult};
 
-#[async_trait::async_trait(?Send)]
-impl PerformCrud for DeleteAccount {
-  type Response = DeleteAccountResponse;
-
-  #[tracing::instrument(skip(self, context))]
-  async fn perform(&self, context: &Data<LemmyContext>) -> Result<Self::Response, LemmyError> {
-    let data = self;
-    let local_user_view = local_user_view_from_jwt(data.auth.as_ref(), context).await?;
-
-    // Verify the password
-    let valid: bool = verify(
-      &data.password,
-      &local_user_view.local_user.password_encrypted,
-    )
-    .unwrap_or(false);
-    if !valid {
-      return Err(LemmyError::from_message("password_incorrect"));
-    }
-
-    Ok(DeleteAccountResponse {})
+#[tracing::instrument(skip(context))]
+pub async fn delete_account(
+  data: Json<DeleteAccount>,
+  context: Data<LemmyContext>,
+  local_user_view: LocalUserView,
+) -> LemmyResult<Json<SuccessResponse>> {
+  // Verify the password
+  let valid: bool = verify(
+    &data.password,
+    &local_user_view.local_user.password_encrypted,
+  )
+  .unwrap_or(false);
+  if !valid {
+    Err(LemmyErrorType::IncorrectLogin)?
   }
+
+  if data.delete_content {
+    purge_user_account(local_user_view.person.id, &context).await?;
+  } else {
+    Person::delete_account(&mut context.pool(), local_user_view.person.id).await?;
+  }
+
+  LoginToken::invalidate_all(&mut context.pool(), local_user_view.local_user.id).await?;
+
+  ActivityChannel::submit_activity(
+    SendActivityData::DeleteUser(local_user_view.person, data.delete_content),
+    &context,
+  )
+  .await?;
+
+  Ok(Json(SuccessResponse::default()))
 }

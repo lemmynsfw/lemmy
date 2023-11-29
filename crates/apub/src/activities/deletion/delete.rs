@@ -3,7 +3,7 @@ use crate::{
     deletion::{receive_delete_action, verify_delete_activity, DeletableObjects},
     generate_activity_id,
   },
-  insert_activity,
+  insert_received_activity,
   objects::person::ApubPerson,
   protocol::{activities::deletion::delete::Delete, IdOrNestedObject},
 };
@@ -25,7 +25,7 @@ use lemmy_db_schema::{
   },
   traits::Crud,
 };
-use lemmy_utils::error::LemmyError;
+use lemmy_utils::error::{LemmyError, LemmyErrorType};
 use url::Url;
 
 #[async_trait::async_trait]
@@ -43,13 +43,13 @@ impl ActivityHandler for Delete {
 
   #[tracing::instrument(skip_all)]
   async fn verify(&self, context: &Data<Self::DataType>) -> Result<(), LemmyError> {
+    insert_received_activity(&self.id, context).await?;
     verify_delete_activity(self, self.summary.is_some(), context).await?;
     Ok(())
   }
 
   #[tracing::instrument(skip_all)]
   async fn receive(self, context: &Data<LemmyContext>) -> Result<(), LemmyError> {
-    insert_activity(&self.id, &self, false, false, context).await?;
     if let Some(reason) = self.summary {
       // We set reason to empty string if it doesn't exist, to distinguish between delete and
       // remove. Here we change it back to option, so we don't write it to db.
@@ -66,7 +66,14 @@ impl ActivityHandler for Delete {
       )
       .await
     } else {
-      receive_delete_action(self.object.id(), &self.actor, true, context).await
+      receive_delete_action(
+        self.object.id(),
+        &self.actor,
+        true,
+        self.remove_data,
+        context,
+      )
+      .await
     }
   }
 }
@@ -94,6 +101,7 @@ impl Delete {
       summary,
       id,
       audience: community.map(|c| c.actor_id.clone().into()),
+      remove_data: None,
     })
   }
 }
@@ -108,22 +116,22 @@ pub(in crate::activities) async fn receive_remove_action(
   match DeletableObjects::read_from_db(object, context).await? {
     DeletableObjects::Community(community) => {
       if community.local {
-        return Err(LemmyError::from_message(
-          "Only local admin can remove community",
-        ));
+        Err(LemmyErrorType::OnlyLocalAdminCanRemoveCommunity)?
       }
       let form = ModRemoveCommunityForm {
         mod_person_id: actor.id,
         community_id: community.id,
         removed: Some(true),
         reason,
-        expires: None,
       };
-      ModRemoveCommunity::create(context.pool(), &form).await?;
+      ModRemoveCommunity::create(&mut context.pool(), &form).await?;
       Community::update(
-        context.pool(),
+        &mut context.pool(),
         community.id,
-        &CommunityUpdateForm::builder().removed(Some(true)).build(),
+        &CommunityUpdateForm {
+          removed: Some(true),
+          ..Default::default()
+        },
       )
       .await?;
     }
@@ -134,11 +142,14 @@ pub(in crate::activities) async fn receive_remove_action(
         removed: Some(true),
         reason,
       };
-      ModRemovePost::create(context.pool(), &form).await?;
+      ModRemovePost::create(&mut context.pool(), &form).await?;
       Post::update(
-        context.pool(),
+        &mut context.pool(),
         post.id,
-        &PostUpdateForm::builder().removed(Some(true)).build(),
+        &PostUpdateForm {
+          removed: Some(true),
+          ..Default::default()
+        },
       )
       .await?;
     }
@@ -149,15 +160,19 @@ pub(in crate::activities) async fn receive_remove_action(
         removed: Some(true),
         reason,
       };
-      ModRemoveComment::create(context.pool(), &form).await?;
+      ModRemoveComment::create(&mut context.pool(), &form).await?;
       Comment::update(
-        context.pool(),
+        &mut context.pool(),
         comment.id,
-        &CommentUpdateForm::builder().removed(Some(true)).build(),
+        &CommentUpdateForm {
+          removed: Some(true),
+          ..Default::default()
+        },
       )
       .await?;
     }
     DeletableObjects::PrivateMessage(_) => unimplemented!(),
+    DeletableObjects::Person { .. } => unimplemented!(),
   }
   Ok(())
 }

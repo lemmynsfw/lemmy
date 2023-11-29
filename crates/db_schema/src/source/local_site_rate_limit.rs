@@ -1,6 +1,7 @@
 use crate::newtypes::LocalSiteId;
 #[cfg(feature = "full")]
 use crate::schema::local_site_rate_limit;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 #[cfg(feature = "full")]
@@ -9,16 +10,17 @@ use typed_builder::TypedBuilder;
 
 #[skip_serializing_none]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "full", derive(Queryable, Identifiable, TS))]
+#[cfg_attr(feature = "full", derive(Queryable, Selectable, Identifiable, TS))]
 #[cfg_attr(feature = "full", diesel(table_name = local_site_rate_limit))]
+#[cfg_attr(feature = "full", diesel(primary_key(local_site_id)))]
 #[cfg_attr(
   feature = "full",
   diesel(belongs_to(crate::source::local_site::LocalSite))
 )]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// Rate limits for your site. Given in count / length of time.
 pub struct LocalSiteRateLimit {
-  pub id: i32,
   pub local_site_id: LocalSiteId,
   pub message: i32,
   pub message_per_second: i32,
@@ -32,8 +34,10 @@ pub struct LocalSiteRateLimit {
   pub comment_per_second: i32,
   pub search: i32,
   pub search_per_second: i32,
-  pub published: chrono::NaiveDateTime,
-  pub updated: Option<chrono::NaiveDateTime>,
+  pub published: DateTime<Utc>,
+  pub updated: Option<DateTime<Utc>>,
+  pub import_user_settings: i32,
+  pub import_user_settings_per_second: i32,
 }
 
 #[derive(Clone, TypedBuilder)]
@@ -55,10 +59,11 @@ pub struct LocalSiteRateLimitInsertForm {
   pub comment_per_second: Option<i32>,
   pub search: Option<i32>,
   pub search_per_second: Option<i32>,
+  pub import_user_settings: Option<i32>,
+  pub import_user_settings_per_second: Option<i32>,
 }
 
-#[derive(Clone, TypedBuilder)]
-#[builder(field_defaults(default))]
+#[derive(Clone, Default)]
 #[cfg_attr(feature = "full", derive(AsChangeset))]
 #[cfg_attr(feature = "full", diesel(table_name = local_site_rate_limit))]
 pub struct LocalSiteRateLimitUpdateForm {
@@ -74,5 +79,7 @@ pub struct LocalSiteRateLimitUpdateForm {
   pub comment_per_second: Option<i32>,
   pub search: Option<i32>,
   pub search_per_second: Option<i32>,
-  pub updated: Option<Option<chrono::NaiveDateTime>>,
+  pub import_user_settings: Option<i32>,
+  pub import_user_settings_per_second: Option<i32>,
+  pub updated: Option<Option<DateTime<Utc>>>,
 }

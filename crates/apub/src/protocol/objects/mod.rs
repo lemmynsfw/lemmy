@@ -33,7 +33,7 @@ pub(crate) struct LanguageTag {
 impl LanguageTag {
   pub(crate) async fn new_single(
     lang: LanguageId,
-    pool: &DbPool,
+    pool: &mut DbPool<'_>,
   ) -> Result<Option<LanguageTag>, LemmyError> {
     let lang = Language::read_from_id(pool, lang).await?;
 
@@ -50,7 +50,7 @@ impl LanguageTag {
 
   pub(crate) async fn new_multiple(
     lang_ids: Vec<LanguageId>,
-    pool: &DbPool,
+    pool: &mut DbPool<'_>,
   ) -> Result<Vec<LanguageTag>, LemmyError> {
     let mut langs = Vec::<Language>::new();
 
@@ -70,7 +70,7 @@ impl LanguageTag {
 
   pub(crate) async fn to_language_id_single(
     lang: Option<Self>,
-    pool: &DbPool,
+    pool: &mut DbPool<'_>,
   ) -> Result<Option<LanguageId>, LemmyError> {
     let identifier = lang.map(|l| l.identifier);
     let language = Language::read_id_from_code(pool, identifier.as_deref()).await?;
@@ -80,7 +80,7 @@ impl LanguageTag {
 
   pub(crate) async fn to_language_id_multiple(
     langs: Vec<Self>,
-    pool: &DbPool,
+    pool: &mut DbPool<'_>,
   ) -> Result<Vec<LanguageId>, LemmyError> {
     let mut language_ids = Vec::new();
 
@@ -107,77 +107,87 @@ mod tests {
     },
     tests::{test_json, test_parse_lemmy_item},
   };
+  use lemmy_utils::error::LemmyResult;
 
   #[test]
-  fn test_parse_objects_lemmy() {
-    test_parse_lemmy_item::<Instance>("assets/lemmy/objects/instance.json").unwrap();
-    test_parse_lemmy_item::<Group>("assets/lemmy/objects/group.json").unwrap();
-    test_parse_lemmy_item::<Person>("assets/lemmy/objects/person.json").unwrap();
-    test_parse_lemmy_item::<Page>("assets/lemmy/objects/page.json").unwrap();
-    test_parse_lemmy_item::<Note>("assets/lemmy/objects/note.json").unwrap();
-    test_parse_lemmy_item::<ChatMessage>("assets/lemmy/objects/chat_message.json").unwrap();
-    test_parse_lemmy_item::<Tombstone>("assets/lemmy/objects/tombstone.json").unwrap();
+  fn test_parse_objects_lemmy() -> LemmyResult<()> {
+    test_parse_lemmy_item::<Instance>("assets/lemmy/objects/instance.json")?;
+    test_parse_lemmy_item::<Group>("assets/lemmy/objects/group.json")?;
+    test_parse_lemmy_item::<Person>("assets/lemmy/objects/person.json")?;
+    test_parse_lemmy_item::<Page>("assets/lemmy/objects/page.json")?;
+    test_parse_lemmy_item::<Note>("assets/lemmy/objects/note.json")?;
+    test_parse_lemmy_item::<ChatMessage>("assets/lemmy/objects/chat_message.json")?;
+    test_parse_lemmy_item::<Tombstone>("assets/lemmy/objects/tombstone.json")?;
+    Ok(())
   }
 
   #[test]
-  fn test_parse_objects_pleroma() {
-    test_json::<Person>("assets/pleroma/objects/person.json").unwrap();
-    test_json::<Note>("assets/pleroma/objects/note.json").unwrap();
-    test_json::<ChatMessage>("assets/pleroma/objects/chat_message.json").unwrap();
+  fn test_parse_objects_pleroma() -> LemmyResult<()> {
+    test_json::<Person>("assets/pleroma/objects/person.json")?;
+    test_json::<Note>("assets/pleroma/objects/note.json")?;
+    test_json::<ChatMessage>("assets/pleroma/objects/chat_message.json")?;
+    Ok(())
   }
 
   #[test]
-  fn test_parse_objects_smithereen() {
-    test_json::<Person>("assets/smithereen/objects/person.json").unwrap();
-    test_json::<Note>("assets/smithereen/objects/note.json").unwrap();
+  fn test_parse_objects_smithereen() -> LemmyResult<()> {
+    test_json::<Person>("assets/smithereen/objects/person.json")?;
+    test_json::<Note>("assets/smithereen/objects/note.json")?;
+    Ok(())
   }
 
   #[test]
-  fn test_parse_objects_mastodon() {
-    test_json::<Person>("assets/mastodon/objects/person.json").unwrap();
-    test_json::<Note>("assets/mastodon/objects/note.json").unwrap();
-    test_json::<Page>("assets/mastodon/objects/page.json").unwrap();
+  fn test_parse_objects_mastodon() -> LemmyResult<()> {
+    test_json::<Person>("assets/mastodon/objects/person.json")?;
+    test_json::<Note>("assets/mastodon/objects/note.json")?;
+    test_json::<Page>("assets/mastodon/objects/page.json")?;
+    Ok(())
   }
 
   #[test]
-  fn test_parse_objects_lotide() {
-    test_json::<Group>("assets/lotide/objects/group.json").unwrap();
-    test_json::<Person>("assets/lotide/objects/person.json").unwrap();
-    test_json::<Note>("assets/lotide/objects/note.json").unwrap();
-    test_json::<Page>("assets/lotide/objects/page.json").unwrap();
-    test_json::<Tombstone>("assets/lotide/objects/tombstone.json").unwrap();
+  fn test_parse_objects_lotide() -> LemmyResult<()> {
+    test_json::<Group>("assets/lotide/objects/group.json")?;
+    test_json::<Person>("assets/lotide/objects/person.json")?;
+    test_json::<Note>("assets/lotide/objects/note.json")?;
+    test_json::<Page>("assets/lotide/objects/page.json")?;
+    test_json::<Tombstone>("assets/lotide/objects/tombstone.json")?;
+    Ok(())
   }
 
   #[test]
-  fn test_parse_object_friendica() {
-    test_json::<Person>("assets/friendica/objects/person_1.json").unwrap();
-    test_json::<Person>("assets/friendica/objects/person_2.json").unwrap();
-    test_json::<Page>("assets/friendica/objects/page_1.json").unwrap();
-    test_json::<Page>("assets/friendica/objects/page_2.json").unwrap();
-    test_json::<Note>("assets/friendica/objects/note_1.json").unwrap();
-    test_json::<Note>("assets/friendica/objects/note_2.json").unwrap();
+  fn test_parse_object_friendica() -> LemmyResult<()> {
+    test_json::<Person>("assets/friendica/objects/person_1.json")?;
+    test_json::<Person>("assets/friendica/objects/person_2.json")?;
+    test_json::<Page>("assets/friendica/objects/page_1.json")?;
+    test_json::<Page>("assets/friendica/objects/page_2.json")?;
+    test_json::<Note>("assets/friendica/objects/note_1.json")?;
+    test_json::<Note>("assets/friendica/objects/note_2.json")?;
+    Ok(())
   }
 
   #[test]
-  fn test_parse_object_gnusocial() {
-    test_json::<Person>("assets/gnusocial/objects/person.json").unwrap();
-    test_json::<Group>("assets/gnusocial/objects/group.json").unwrap();
-    test_json::<Page>("assets/gnusocial/objects/page.json").unwrap();
-    test_json::<Note>("assets/gnusocial/objects/note.json").unwrap();
+  fn test_parse_object_gnusocial() -> LemmyResult<()> {
+    test_json::<Person>("assets/gnusocial/objects/person.json")?;
+    test_json::<Group>("assets/gnusocial/objects/group.json")?;
+    test_json::<Page>("assets/gnusocial/objects/page.json")?;
+    test_json::<Note>("assets/gnusocial/objects/note.json")?;
+    Ok(())
   }
 
   #[test]
-  fn test_parse_object_peertube() {
-    test_json::<Person>("assets/peertube/objects/person.json").unwrap();
-    test_json::<Group>("assets/peertube/objects/group.json").unwrap();
-    test_json::<Page>("assets/peertube/objects/video.json").unwrap();
-    test_json::<Note>("assets/peertube/objects/note.json").unwrap();
+  fn test_parse_object_peertube() -> LemmyResult<()> {
+    test_json::<Person>("assets/peertube/objects/person.json")?;
+    test_json::<Group>("assets/peertube/objects/group.json")?;
+    test_json::<Page>("assets/peertube/objects/video.json")?;
+    test_json::<Note>("assets/peertube/objects/note.json")?;
+    Ok(())
   }
 
   #[test]
-  fn test_parse_object_mobilizon() {
-    test_json::<Group>("assets/mobilizon/objects/group.json").unwrap();
-    test_json::<Page>("assets/mobilizon/objects/event.json").unwrap();
-    test_json::<Person>("assets/mobilizon/objects/person.json").unwrap();
+  fn test_parse_object_mobilizon() -> LemmyResult<()> {
+    test_json::<Group>("assets/mobilizon/objects/group.json")?;
+    test_json::<Page>("assets/mobilizon/objects/event.json")?;
+    test_json::<Person>("assets/mobilizon/objects/person.json")?;
+    Ok(())
   }
 }

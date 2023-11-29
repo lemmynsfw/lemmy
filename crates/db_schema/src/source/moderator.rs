@@ -17,6 +17,7 @@ use crate::schema::{
   mod_remove_post,
   mod_transfer_community,
 };
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 #[cfg(feature = "full")]
@@ -24,8 +25,9 @@ use ts_rs::TS;
 
 #[skip_serializing_none]
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "full", derive(Queryable, Identifiable, TS))]
+#[cfg_attr(feature = "full", derive(Queryable, Selectable, Identifiable, TS))]
 #[cfg_attr(feature = "full", diesel(table_name = mod_remove_post))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// When a moderator removes a post.
 pub struct ModRemovePost {
@@ -34,7 +36,7 @@ pub struct ModRemovePost {
   pub post_id: PostId,
   pub reason: Option<String>,
   pub removed: bool,
-  pub when_: chrono::NaiveDateTime,
+  pub when_: DateTime<Utc>,
 }
 
 #[cfg_attr(feature = "full", derive(Insertable, AsChangeset))]
@@ -47,8 +49,9 @@ pub struct ModRemovePostForm {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "full", derive(Queryable, Identifiable, TS))]
+#[cfg_attr(feature = "full", derive(Queryable, Selectable, Identifiable, TS))]
 #[cfg_attr(feature = "full", diesel(table_name = mod_lock_post))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// When a moderator locks a post (prevents new comments being made).
 pub struct ModLockPost {
@@ -56,7 +59,7 @@ pub struct ModLockPost {
   pub mod_person_id: PersonId,
   pub post_id: PostId,
   pub locked: bool,
-  pub when_: chrono::NaiveDateTime,
+  pub when_: DateTime<Utc>,
 }
 
 #[cfg_attr(feature = "full", derive(Insertable, AsChangeset))]
@@ -68,8 +71,9 @@ pub struct ModLockPostForm {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "full", derive(Queryable, Identifiable, TS))]
+#[cfg_attr(feature = "full", derive(Queryable, Selectable, Identifiable, TS))]
 #[cfg_attr(feature = "full", diesel(table_name = mod_feature_post))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// When a moderator features a post on a community (pins it to the top).
 pub struct ModFeaturePost {
@@ -77,7 +81,7 @@ pub struct ModFeaturePost {
   pub mod_person_id: PersonId,
   pub post_id: PostId,
   pub featured: bool,
-  pub when_: chrono::NaiveDateTime,
+  pub when_: DateTime<Utc>,
   pub is_featured_community: bool,
 }
 
@@ -92,8 +96,9 @@ pub struct ModFeaturePostForm {
 
 #[skip_serializing_none]
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "full", derive(Queryable, Identifiable, TS))]
+#[cfg_attr(feature = "full", derive(Queryable, Selectable, Identifiable, TS))]
 #[cfg_attr(feature = "full", diesel(table_name = mod_remove_comment))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// When a moderator removes a comment.
 pub struct ModRemoveComment {
@@ -102,7 +107,7 @@ pub struct ModRemoveComment {
   pub comment_id: CommentId,
   pub reason: Option<String>,
   pub removed: bool,
-  pub when_: chrono::NaiveDateTime,
+  pub when_: DateTime<Utc>,
 }
 
 #[cfg_attr(feature = "full", derive(Insertable, AsChangeset))]
@@ -116,8 +121,9 @@ pub struct ModRemoveCommentForm {
 
 #[skip_serializing_none]
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "full", derive(Queryable, Identifiable, TS))]
+#[cfg_attr(feature = "full", derive(Queryable, Selectable, Identifiable, TS))]
 #[cfg_attr(feature = "full", diesel(table_name = mod_remove_community))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// When a moderator removes a community.
 pub struct ModRemoveCommunity {
@@ -126,8 +132,7 @@ pub struct ModRemoveCommunity {
   pub community_id: CommunityId,
   pub reason: Option<String>,
   pub removed: bool,
-  pub expires: Option<chrono::NaiveDateTime>,
-  pub when_: chrono::NaiveDateTime,
+  pub when_: DateTime<Utc>,
 }
 
 #[cfg_attr(feature = "full", derive(Insertable, AsChangeset))]
@@ -137,13 +142,13 @@ pub struct ModRemoveCommunityForm {
   pub community_id: CommunityId,
   pub reason: Option<String>,
   pub removed: Option<bool>,
-  pub expires: Option<chrono::NaiveDateTime>,
 }
 
 #[skip_serializing_none]
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "full", derive(Queryable, Identifiable, TS))]
+#[cfg_attr(feature = "full", derive(Queryable, Selectable, Identifiable, TS))]
 #[cfg_attr(feature = "full", diesel(table_name = mod_ban_from_community))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// When someone is banned from a community.
 pub struct ModBanFromCommunity {
@@ -153,8 +158,8 @@ pub struct ModBanFromCommunity {
   pub community_id: CommunityId,
   pub reason: Option<String>,
   pub banned: bool,
-  pub expires: Option<chrono::NaiveDateTime>,
-  pub when_: chrono::NaiveDateTime,
+  pub expires: Option<DateTime<Utc>>,
+  pub when_: DateTime<Utc>,
 }
 
 #[cfg_attr(feature = "full", derive(Insertable, AsChangeset))]
@@ -165,13 +170,14 @@ pub struct ModBanFromCommunityForm {
   pub community_id: CommunityId,
   pub reason: Option<String>,
   pub banned: Option<bool>,
-  pub expires: Option<chrono::NaiveDateTime>,
+  pub expires: Option<DateTime<Utc>>,
 }
 
 #[skip_serializing_none]
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "full", derive(Queryable, Identifiable, TS))]
+#[cfg_attr(feature = "full", derive(Queryable, Selectable, Identifiable, TS))]
 #[cfg_attr(feature = "full", diesel(table_name = mod_ban))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// When someone is banned from the site.
 pub struct ModBan {
@@ -180,8 +186,8 @@ pub struct ModBan {
   pub other_person_id: PersonId,
   pub reason: Option<String>,
   pub banned: bool,
-  pub expires: Option<chrono::NaiveDateTime>,
-  pub when_: chrono::NaiveDateTime,
+  pub expires: Option<DateTime<Utc>>,
+  pub when_: DateTime<Utc>,
 }
 
 #[cfg_attr(feature = "full", derive(Insertable, AsChangeset))]
@@ -195,15 +201,16 @@ pub struct ModHideCommunityForm {
 
 #[skip_serializing_none]
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "full", derive(Queryable, Identifiable, TS))]
+#[cfg_attr(feature = "full", derive(Queryable, Selectable, Identifiable, TS))]
 #[cfg_attr(feature = "full", diesel(table_name = mod_hide_community))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// When a community is hidden from public view.
 pub struct ModHideCommunity {
   pub id: i32,
   pub community_id: CommunityId,
   pub mod_person_id: PersonId,
-  pub when_: chrono::NaiveDateTime,
+  pub when_: DateTime<Utc>,
   pub reason: Option<String>,
   pub hidden: bool,
 }
@@ -215,12 +222,13 @@ pub struct ModBanForm {
   pub other_person_id: PersonId,
   pub reason: Option<String>,
   pub banned: Option<bool>,
-  pub expires: Option<chrono::NaiveDateTime>,
+  pub expires: Option<DateTime<Utc>>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "full", derive(Queryable, Identifiable, TS))]
+#[cfg_attr(feature = "full", derive(Queryable, Selectable, Identifiable, TS))]
 #[cfg_attr(feature = "full", diesel(table_name = mod_add_community))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// When someone is added as a community moderator.
 pub struct ModAddCommunity {
@@ -229,7 +237,7 @@ pub struct ModAddCommunity {
   pub other_person_id: PersonId,
   pub community_id: CommunityId,
   pub removed: bool,
-  pub when_: chrono::NaiveDateTime,
+  pub when_: DateTime<Utc>,
 }
 
 #[cfg_attr(feature = "full", derive(Insertable, AsChangeset))]
@@ -242,8 +250,9 @@ pub struct ModAddCommunityForm {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "full", derive(Queryable, Identifiable, TS))]
+#[cfg_attr(feature = "full", derive(Queryable, Selectable, Identifiable, TS))]
 #[cfg_attr(feature = "full", diesel(table_name = mod_transfer_community))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// When a moderator transfers a community to a new owner.
 pub struct ModTransferCommunity {
@@ -251,7 +260,7 @@ pub struct ModTransferCommunity {
   pub mod_person_id: PersonId,
   pub other_person_id: PersonId,
   pub community_id: CommunityId,
-  pub when_: chrono::NaiveDateTime,
+  pub when_: DateTime<Utc>,
 }
 
 #[cfg_attr(feature = "full", derive(Insertable, AsChangeset))]
@@ -263,8 +272,9 @@ pub struct ModTransferCommunityForm {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "full", derive(Queryable, Identifiable, TS))]
+#[cfg_attr(feature = "full", derive(Queryable, Selectable, Identifiable, TS))]
 #[cfg_attr(feature = "full", diesel(table_name = mod_add))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// When someone is added as a site moderator.
 pub struct ModAdd {
@@ -272,7 +282,7 @@ pub struct ModAdd {
   pub mod_person_id: PersonId,
   pub other_person_id: PersonId,
   pub removed: bool,
-  pub when_: chrono::NaiveDateTime,
+  pub when_: DateTime<Utc>,
 }
 
 #[cfg_attr(feature = "full", derive(Insertable, AsChangeset))]
@@ -285,15 +295,16 @@ pub struct ModAddForm {
 
 #[skip_serializing_none]
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "full", derive(Queryable, Identifiable, TS))]
+#[cfg_attr(feature = "full", derive(Queryable, Selectable, Identifiable, TS))]
 #[cfg_attr(feature = "full", diesel(table_name = admin_purge_person))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// When an admin purges a person.
 pub struct AdminPurgePerson {
   pub id: i32,
   pub admin_person_id: PersonId,
   pub reason: Option<String>,
-  pub when_: chrono::NaiveDateTime,
+  pub when_: DateTime<Utc>,
 }
 
 #[cfg_attr(feature = "full", derive(Insertable, AsChangeset))]
@@ -305,15 +316,16 @@ pub struct AdminPurgePersonForm {
 
 #[skip_serializing_none]
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "full", derive(Queryable, Identifiable, TS))]
+#[cfg_attr(feature = "full", derive(Queryable, Selectable, Identifiable, TS))]
 #[cfg_attr(feature = "full", diesel(table_name = admin_purge_community))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// When an admin purges a community.
 pub struct AdminPurgeCommunity {
   pub id: i32,
   pub admin_person_id: PersonId,
   pub reason: Option<String>,
-  pub when_: chrono::NaiveDateTime,
+  pub when_: DateTime<Utc>,
 }
 
 #[cfg_attr(feature = "full", derive(Insertable, AsChangeset))]
@@ -325,8 +337,9 @@ pub struct AdminPurgeCommunityForm {
 
 #[skip_serializing_none]
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "full", derive(Queryable, Identifiable, TS))]
+#[cfg_attr(feature = "full", derive(Queryable, Selectable, Identifiable, TS))]
 #[cfg_attr(feature = "full", diesel(table_name = admin_purge_post))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// When an admin purges a post.
 pub struct AdminPurgePost {
@@ -334,7 +347,7 @@ pub struct AdminPurgePost {
   pub admin_person_id: PersonId,
   pub community_id: CommunityId,
   pub reason: Option<String>,
-  pub when_: chrono::NaiveDateTime,
+  pub when_: DateTime<Utc>,
 }
 
 #[cfg_attr(feature = "full", derive(Insertable, AsChangeset))]
@@ -347,8 +360,9 @@ pub struct AdminPurgePostForm {
 
 #[skip_serializing_none]
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "full", derive(Queryable, Identifiable, TS))]
+#[cfg_attr(feature = "full", derive(Queryable, Selectable, Identifiable, TS))]
 #[cfg_attr(feature = "full", diesel(table_name = admin_purge_comment))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// When an admin purges a comment.
 pub struct AdminPurgeComment {
@@ -356,7 +370,7 @@ pub struct AdminPurgeComment {
   pub admin_person_id: PersonId,
   pub post_id: PostId,
   pub reason: Option<String>,
-  pub when_: chrono::NaiveDateTime,
+  pub when_: DateTime<Utc>,
 }
 
 #[cfg_attr(feature = "full", derive(Insertable, AsChangeset))]

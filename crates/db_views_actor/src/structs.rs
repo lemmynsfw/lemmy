@@ -1,12 +1,16 @@
+#[cfg(feature = "full")]
+use diesel::Queryable;
 use lemmy_db_schema::{
   aggregates::structs::{CommentAggregates, CommunityAggregates, PersonAggregates},
   source::{
     comment::Comment,
     comment_reply::CommentReply,
     community::Community,
+    instance::Instance,
     person::Person,
     person_mention::PersonMention,
     post::Post,
+    site::Site,
   },
   SubscribedType,
 };
@@ -16,7 +20,8 @@ use serde_with::skip_serializing_none;
 use ts_rs::TS;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[cfg_attr(feature = "full", derive(TS))]
+#[cfg_attr(feature = "full", derive(TS, Queryable))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// A community block.
 pub struct CommunityBlockView {
@@ -24,8 +29,21 @@ pub struct CommunityBlockView {
   pub community: Community,
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[cfg_attr(feature = "full", derive(TS))]
+#[cfg_attr(feature = "full", derive(TS, Queryable))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
+#[cfg_attr(feature = "full", ts(export))]
+/// An instance block by a user.
+pub struct InstanceBlockView {
+  pub person: Person,
+  pub instance: Instance,
+  pub site: Option<Site>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "full", derive(TS, Queryable))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// A community follower.
 pub struct CommunityFollowerView {
@@ -34,7 +52,8 @@ pub struct CommunityFollowerView {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[cfg_attr(feature = "full", derive(TS))]
+#[cfg_attr(feature = "full", derive(TS, Queryable))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// A community moderator.
 pub struct CommunityModeratorView {
@@ -43,6 +62,8 @@ pub struct CommunityModeratorView {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "full", derive(Queryable))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 /// A community person ban.
 pub struct CommunityPersonBanView {
   pub community: Community,
@@ -50,7 +71,8 @@ pub struct CommunityPersonBanView {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[cfg_attr(feature = "full", derive(TS))]
+#[cfg_attr(feature = "full", derive(TS, Queryable))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// A community view.
 pub struct CommunityView {
@@ -61,7 +83,8 @@ pub struct CommunityView {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[cfg_attr(feature = "full", derive(TS))]
+#[cfg_attr(feature = "full", derive(TS, Queryable))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// A person block.
 pub struct PersonBlockView {
@@ -70,8 +93,9 @@ pub struct PersonBlockView {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
-#[cfg_attr(feature = "full", derive(TS))]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "full", derive(TS, Queryable))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// A person mention view.
 pub struct PersonMentionView {
@@ -83,6 +107,8 @@ pub struct PersonMentionView {
   pub recipient: Person,
   pub counts: CommentAggregates,
   pub creator_banned_from_community: bool,
+  pub creator_is_moderator: bool,
+  pub creator_is_admin: bool,
   pub subscribed: SubscribedType,
   pub saved: bool,
   pub creator_blocked: bool,
@@ -90,8 +116,9 @@ pub struct PersonMentionView {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
-#[cfg_attr(feature = "full", derive(TS))]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "full", derive(TS, Queryable))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// A comment reply view.
 pub struct CommentReplyView {
@@ -102,18 +129,22 @@ pub struct CommentReplyView {
   pub community: Community,
   pub recipient: Person,
   pub counts: CommentAggregates,
-  pub creator_banned_from_community: bool, // Left Join to CommunityPersonBan
-  pub subscribed: SubscribedType,          // Left join to CommunityFollower
-  pub saved: bool,                         // Left join to CommentSaved
-  pub creator_blocked: bool,               // Left join to PersonBlock
-  pub my_vote: Option<i16>,                // Left join to CommentLike
+  pub creator_banned_from_community: bool,
+  pub creator_is_moderator: bool,
+  pub creator_is_admin: bool,
+  pub subscribed: SubscribedType,
+  pub saved: bool,
+  pub creator_blocked: bool,
+  pub my_vote: Option<i16>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[cfg_attr(feature = "full", derive(TS))]
+#[cfg_attr(feature = "full", derive(TS, Queryable))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// A person view.
 pub struct PersonView {
   pub person: Person,
   pub counts: PersonAggregates,
+  pub is_admin: bool,
 }

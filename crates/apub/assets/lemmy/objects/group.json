@@ -1,7 +1,7 @@
 {
   "id": "https://enterprise.lemmy.ml/c/tenforward",
   "type": "Group",
-  "preferredUsername": "main",
+  "preferredUsername": "tenforward",
   "name": "Ten Forward",
   "summary": "<p>Lounge and recreation facility</p>\n<hr />\n<p>Welcome to the <a href=\"https://memory-alpha.fandom.com/wiki/USS_Enterprise_(NCC-1701-D)\">Enterprise</a>!.</p>\n",
   "source": {
@@ -41,6 +41,6 @@
       "name": "Deutsch"
     }
   ],
-  "published": "2019-06-02T16:43:50.799554+00:00",
-  "updated": "2021-03-10T17:18:10.498868+00:00"
+  "published": "2019-06-02T16:43:50.799554Z",
+  "updated": "2021-03-10T17:18:10.498868Z"
 }

@@ -28,6 +28,15 @@ pub mod newtypes;
 #[rustfmt::skip]
 #[allow(clippy::wildcard_imports)]
 pub mod schema;
+#[cfg(feature = "full")]
+pub mod aliases {
+  use crate::schema::{community_moderator, person};
+  diesel::alias!(
+    person as person1: Person1,
+    person as person2: Person2,
+    community_moderator as community_moderator1: CommunityModerator1
+  );
+}
 pub mod source;
 #[cfg(feature = "full")]
 pub mod traits;
@@ -39,7 +48,9 @@ use strum_macros::{Display, EnumString};
 #[cfg(feature = "full")]
 use ts_rs::TS;
 
-#[derive(EnumString, Display, Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(
+  EnumString, Display, Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default,
+)]
 #[cfg_attr(feature = "full", derive(DbEnum, TS))]
 #[cfg_attr(
   feature = "full",
@@ -47,8 +58,10 @@ use ts_rs::TS;
 )]
 #[cfg_attr(feature = "full", DbValueStyle = "verbatim")]
 #[cfg_attr(feature = "full", ts(export))]
+// TODO add the controversial and scaled rankings to the doc below
 /// The post sort types. See here for descriptions: https://join-lemmy.org/docs/en/users/03-votes-and-ranking.html
 pub enum SortType {
+  #[default]
   Active,
   Hot,
   New,
@@ -66,6 +79,8 @@ pub enum SortType {
   TopThreeMonths,
   TopSixMonths,
   TopNineMonths,
+  Controversial,
+  Scaled,
 }
 
 #[derive(EnumString, Display, Debug, Serialize, Deserialize, Clone, Copy)]
@@ -77,9 +92,12 @@ pub enum CommentSortType {
   Top,
   New,
   Old,
+  Controversial,
 }
 
-#[derive(EnumString, Display, Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(
+  EnumString, Display, Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default,
+)]
 #[cfg_attr(feature = "full", derive(DbEnum, TS))]
 #[cfg_attr(
   feature = "full",
@@ -92,12 +110,17 @@ pub enum ListingType {
   /// Content from your own site, as well as all connected / federated sites.
   All,
   /// Content from your site only.
+  #[default]
   Local,
   /// Content only from communities you've subscribed to.
   Subscribed,
+  /// Content that you can moderate (because you are a moderator of the community it is posted to)
+  ModeratorView,
 }
 
-#[derive(EnumString, Display, Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(
+  EnumString, Display, Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default,
+)]
 #[cfg_attr(feature = "full", derive(DbEnum, TS))]
 #[cfg_attr(
   feature = "full",
@@ -112,7 +135,26 @@ pub enum RegistrationMode {
   /// Open, but pending approval of a registration application.
   RequireApplication,
   /// Open to all.
+  #[default]
   Open,
+}
+
+#[derive(EnumString, Display, Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "full", derive(DbEnum, TS))]
+#[cfg_attr(
+  feature = "full",
+  ExistingTypePath = "crate::schema::sql_types::PostListingModeEnum"
+)]
+#[cfg_attr(feature = "full", DbValueStyle = "verbatim")]
+#[cfg_attr(feature = "full", ts(export))]
+/// A post-view mode that changes how multiple post listings look.
+pub enum PostListingMode {
+  /// A compact, list-type view.
+  List,
+  /// A larger card-type view.
+  Card,
+  /// A smaller card-type view, usually with images as thumbnails
+  SmallCard,
 }
 
 #[derive(EnumString, Display, Debug, Serialize, Deserialize, Clone, Copy)]

@@ -1,6 +1,7 @@
 use crate::newtypes::{CustomEmojiId, DbUrl, LocalSiteId};
 #[cfg(feature = "full")]
 use crate::schema::custom_emoji;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 #[cfg(feature = "full")]
@@ -9,12 +10,16 @@ use typed_builder::TypedBuilder;
 
 #[skip_serializing_none]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "full", derive(Queryable, Associations, Identifiable, TS))]
+#[cfg_attr(
+  feature = "full",
+  derive(Queryable, Selectable, Associations, Identifiable, TS)
+)]
 #[cfg_attr(feature = "full", diesel(table_name = custom_emoji))]
 #[cfg_attr(
   feature = "full",
   diesel(belongs_to(crate::source::local_site::LocalSite))
 )]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// A custom emoji.
 pub struct CustomEmoji {
@@ -24,8 +29,8 @@ pub struct CustomEmoji {
   pub image_url: DbUrl,
   pub alt_text: String,
   pub category: String,
-  pub published: chrono::NaiveDateTime,
-  pub updated: Option<chrono::NaiveDateTime>,
+  pub published: DateTime<Utc>,
+  pub updated: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, TypedBuilder)]

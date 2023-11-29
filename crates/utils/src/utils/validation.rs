@@ -1,22 +1,20 @@
-use crate::error::{LemmyError, LemmyResult};
+use crate::error::{LemmyErrorExt, LemmyErrorType, LemmyResult};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use regex::{Regex, RegexBuilder};
-use totp_rs::{Secret, TOTP};
 use url::Url;
 
-static VALID_ACTOR_NAME_REGEX: Lazy<Regex> =
-  Lazy::new(|| Regex::new(r"^[a-zA-Z0-9_]{3,}$").expect("compile regex"));
-static VALID_POST_TITLE_REGEX: Lazy<Regex> =
-  Lazy::new(|| Regex::new(r".*\S{3,}.*").expect("compile regex"));
+// From here: https://github.com/vector-im/element-android/blob/develop/matrix-sdk-android/src/main/java/org/matrix/android/sdk/api/MatrixPatterns.kt#L35
 static VALID_MATRIX_ID_REGEX: Lazy<Regex> = Lazy::new(|| {
-  Regex::new(r"^@[A-Za-z0-9._=-]+:[A-Za-z0-9.-]+\.[A-Za-z]{2,}$").expect("compile regex")
+  Regex::new(r"^@[A-Za-z0-9\\x21-\\x39\\x3B-\\x7F]+:[A-Za-z0-9.-]+(:[0-9]{2,5})?$")
+    .expect("compile regex")
 });
 // taken from https://en.wikipedia.org/wiki/UTM_parameters
 static CLEAN_URL_PARAMS_REGEX: Lazy<Regex> = Lazy::new(|| {
   Regex::new(r"^utm_source|utm_medium|utm_campaign|utm_term|utm_content|gclid|gclsrc|dclid|fbclid$")
     .expect("compile regex")
 });
+const ALLOWED_POST_URL_SCHEMES: [&str; 3] = ["http", "https", "magnet"];
 
 const BODY_MAX_LENGTH: usize = 10000;
 const POST_BODY_MAX_LENGTH: usize = 50000;
@@ -24,31 +22,116 @@ const BIO_MAX_LENGTH: usize = 300;
 const SITE_NAME_MAX_LENGTH: usize = 20;
 const SITE_NAME_MIN_LENGTH: usize = 1;
 const SITE_DESCRIPTION_MAX_LENGTH: usize = 150;
+//Invisible unicode characters, taken from https://invisible-characters.com/
+const FORBIDDEN_DISPLAY_CHARS: [char; 53] = [
+  '\u{0009}',
+  '\u{00a0}',
+  '\u{00ad}',
+  '\u{034f}',
+  '\u{061c}',
+  '\u{115f}',
+  '\u{1160}',
+  '\u{17b4}',
+  '\u{17b5}',
+  '\u{180e}',
+  '\u{2000}',
+  '\u{2001}',
+  '\u{2002}',
+  '\u{2003}',
+  '\u{2004}',
+  '\u{2005}',
+  '\u{2006}',
+  '\u{2007}',
+  '\u{2008}',
+  '\u{2009}',
+  '\u{200a}',
+  '\u{200b}',
+  '\u{200c}',
+  '\u{200d}',
+  '\u{200e}',
+  '\u{200f}',
+  '\u{202f}',
+  '\u{205f}',
+  '\u{2060}',
+  '\u{2061}',
+  '\u{2062}',
+  '\u{2063}',
+  '\u{2064}',
+  '\u{206a}',
+  '\u{206b}',
+  '\u{206c}',
+  '\u{206d}',
+  '\u{206e}',
+  '\u{206f}',
+  '\u{3000}',
+  '\u{2800}',
+  '\u{3164}',
+  '\u{feff}',
+  '\u{ffa0}',
+  '\u{1d159}',
+  '\u{1d173}',
+  '\u{1d174}',
+  '\u{1d175}',
+  '\u{1d176}',
+  '\u{1d177}',
+  '\u{1d178}',
+  '\u{1d179}',
+  '\u{1d17a}',
+];
 
 fn has_newline(name: &str) -> bool {
   name.contains('\n')
 }
 
 pub fn is_valid_actor_name(name: &str, actor_name_max_length: usize) -> LemmyResult<()> {
-  let check = name.chars().count() <= actor_name_max_length
-    && VALID_ACTOR_NAME_REGEX.is_match(name)
-    && !has_newline(name);
-  if !check {
-    Err(LemmyError::from_message("invalid_name"))
+  static VALID_ACTOR_NAME_REGEX_EN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^[a-zA-Z0-9_]{3,}$").expect("compile regex"));
+  static VALID_ACTOR_NAME_REGEX_AR: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^[\p{Arabic}0-9_]{3,}$").expect("compile regex"));
+  static VALID_ACTOR_NAME_REGEX_RU: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^[\p{Cyrillic}0-9_]{3,}$").expect("compile regex"));
+
+  let check = name.chars().count() <= actor_name_max_length && !has_newline(name);
+
+  // Only allow characters from a single alphabet per username. This avoids problems with lookalike
+  // characters like `o` which looks identical in Latin and Cyrillic, and can be used to imitate
+  // other users. Checks for additional alphabets can be added in the same way.
+  let lang_check = VALID_ACTOR_NAME_REGEX_EN.is_match(name)
+    || VALID_ACTOR_NAME_REGEX_AR.is_match(name)
+    || VALID_ACTOR_NAME_REGEX_RU.is_match(name);
+
+  if !check || !lang_check {
+    Err(LemmyErrorType::InvalidName.into())
   } else {
     Ok(())
   }
 }
 
+fn has_3_permitted_display_chars(name: &str) -> bool {
+  let mut num_non_fdc: i8 = 0;
+  for c in name.chars() {
+    if !FORBIDDEN_DISPLAY_CHARS.contains(&c) {
+      num_non_fdc += 1;
+      if num_non_fdc >= 3 {
+        break;
+      }
+    }
+  }
+  if num_non_fdc >= 3 {
+    return true;
+  }
+  false
+}
+
 // Can't do a regex here, reverse lookarounds not supported
 pub fn is_valid_display_name(name: &str, actor_name_max_length: usize) -> LemmyResult<()> {
   let check = !name.starts_with('@')
-    && !name.starts_with('\u{200b}')
-    && name.chars().count() >= 3
+    && !name.starts_with(FORBIDDEN_DISPLAY_CHARS)
     && name.chars().count() <= actor_name_max_length
-    && !has_newline(name);
+    && !has_newline(name)
+    && has_3_permitted_display_chars(name);
   if !check {
-    Err(LemmyError::from_message("invalid_username"))
+    Err(LemmyErrorType::InvalidDisplayName.into())
   } else {
     Ok(())
   }
@@ -57,16 +140,17 @@ pub fn is_valid_display_name(name: &str, actor_name_max_length: usize) -> LemmyR
 pub fn is_valid_matrix_id(matrix_id: &str) -> LemmyResult<()> {
   let check = VALID_MATRIX_ID_REGEX.is_match(matrix_id) && !has_newline(matrix_id);
   if !check {
-    Err(LemmyError::from_message("invalid_matrix_id"))
+    Err(LemmyErrorType::InvalidMatrixId.into())
   } else {
     Ok(())
   }
 }
 
 pub fn is_valid_post_title(title: &str) -> LemmyResult<()> {
-  let check = VALID_POST_TITLE_REGEX.is_match(title) && !has_newline(title);
+  let length = title.trim().len();
+  let check = (3..=200).contains(&length) && !has_newline(title);
   if !check {
-    Err(LemmyError::from_message("invalid_post_title"))
+    Err(LemmyErrorType::InvalidPostTitle.into())
   } else {
     Ok(())
   }
@@ -75,34 +159,26 @@ pub fn is_valid_post_title(title: &str) -> LemmyResult<()> {
 /// This could be post bodies, comments, or any description field
 pub fn is_valid_body_field(body: &Option<String>, post: bool) -> LemmyResult<()> {
   if let Some(body) = body {
-    let check = if post {
-      body.chars().count() <= POST_BODY_MAX_LENGTH
+    if post {
+      max_length_check(body, POST_BODY_MAX_LENGTH, LemmyErrorType::InvalidBodyField)?;
     } else {
-      body.chars().count() <= BODY_MAX_LENGTH
+      max_length_check(body, BODY_MAX_LENGTH, LemmyErrorType::InvalidBodyField)?;
     };
-
-    if !check {
-      Err(LemmyError::from_message("invalid_body_field"))
-    } else {
-      Ok(())
-    }
-  } else {
-    Ok(())
   }
+  Ok(())
 }
 
 pub fn is_valid_bio_field(bio: &str) -> LemmyResult<()> {
-  max_length_check(bio, BIO_MAX_LENGTH, String::from("bio_length_overflow"))
+  max_length_check(bio, BIO_MAX_LENGTH, LemmyErrorType::BioLengthOverflow)
 }
 
 /// Checks the site name length, the limit as defined in the DB.
 pub fn site_name_length_check(name: &str) -> LemmyResult<()> {
-  min_max_length_check(
+  min_length_check(name, SITE_NAME_MIN_LENGTH, LemmyErrorType::SiteNameRequired)?;
+  max_length_check(
     name,
-    SITE_NAME_MIN_LENGTH,
     SITE_NAME_MAX_LENGTH,
-    String::from("site_name_required"),
-    String::from("site_name_length_overflow"),
+    LemmyErrorType::SiteNameLengthOverflow,
   )
 }
 
@@ -111,29 +187,29 @@ pub fn site_description_length_check(description: &str) -> LemmyResult<()> {
   max_length_check(
     description,
     SITE_DESCRIPTION_MAX_LENGTH,
-    String::from("site_description_length_overflow"),
+    LemmyErrorType::SiteDescriptionLengthOverflow,
   )
 }
 
-fn max_length_check(item: &str, max_length: usize, msg: String) -> LemmyResult<()> {
-  if item.len() > max_length {
-    Err(LemmyError::from_message(&msg))
+/// Check minumum and maximum length of input string. If the string is too short or too long, the
+/// corresponding error is returned.
+///
+/// HTML frontends specify maximum input length using `maxlength` attribute.
+/// For consistency we use the same counting method (UTF-16 code units).
+/// https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/maxlength
+fn max_length_check(item: &str, max_length: usize, max_msg: LemmyErrorType) -> LemmyResult<()> {
+  let len = item.encode_utf16().count();
+  if len > max_length {
+    Err(max_msg.into())
   } else {
     Ok(())
   }
 }
 
-fn min_max_length_check(
-  item: &str,
-  min_length: usize,
-  max_length: usize,
-  min_msg: String,
-  max_msg: String,
-) -> LemmyResult<()> {
-  if item.len() > max_length {
-    Err(LemmyError::from_message(&max_msg))
-  } else if item.len() < min_length {
-    Err(LemmyError::from_message(&min_msg))
+fn min_length_check(item: &str, min_length: usize, min_msg: LemmyErrorType) -> LemmyResult<()> {
+  let len = item.encode_utf16().count();
+  if len < min_length {
+    Err(min_msg.into())
   } else {
     Ok(())
   }
@@ -153,17 +229,17 @@ pub fn build_and_check_regex(regex_str_opt: &Option<&str>) -> LemmyResult<Option
       RegexBuilder::new(regex_str)
         .case_insensitive(true)
         .build()
-        .map_err(|e| LemmyError::from_error_message(e, "invalid_regex"))
+        .with_lemmy_type(LemmyErrorType::InvalidRegex)
         .and_then(|regex| {
           // NOTE: It is difficult to know, in the universe of user-crafted regex, which ones
           // may match against any string text. To keep it simple, we'll match the regex
           // against an innocuous string - a single number - which should help catch a regex
           // that accidentally matches against all strings.
           if regex.is_match("1") {
-            return Err(LemmyError::from_message("permissive_regex"));
+            Err(LemmyErrorType::PermissiveRegex.into())
+          } else {
+            Ok(Some(regex))
           }
-
-          Ok(Some(regex))
         })
     },
   )
@@ -182,52 +258,6 @@ pub fn clean_url_params(url: &Url) -> Url {
   url_out
 }
 
-pub fn check_totp_2fa_valid(
-  totp_secret: &Option<String>,
-  totp_token: &Option<String>,
-  site_name: &str,
-  username: &str,
-) -> LemmyResult<()> {
-  // Check only if they have a totp_secret in the DB
-  if let Some(totp_secret) = totp_secret {
-    // Throw an error if their token is missing
-    let token = totp_token
-      .as_deref()
-      .ok_or_else(|| LemmyError::from_message("missing_totp_token"))?;
-
-    let totp = build_totp_2fa(site_name, username, totp_secret)?;
-
-    let check_passed = totp.check_current(token)?;
-    if !check_passed {
-      return Err(LemmyError::from_message("incorrect_totp token"));
-    }
-  }
-
-  Ok(())
-}
-
-pub fn generate_totp_2fa_secret() -> String {
-  Secret::generate_secret().to_string()
-}
-
-pub fn build_totp_2fa(site_name: &str, username: &str, secret: &str) -> Result<TOTP, LemmyError> {
-  let sec = Secret::Raw(secret.as_bytes().to_vec());
-  let sec_bytes = sec
-    .to_bytes()
-    .map_err(|_| LemmyError::from_message("Couldnt parse totp secret"))?;
-
-  TOTP::new(
-    totp_rs::Algorithm::SHA256,
-    6,
-    1,
-    30,
-    sec_bytes,
-    Some(site_name.to_string()),
-    username.to_string(),
-  )
-  .map_err(|e| LemmyError::from_error_message(e, "Couldnt generate TOTP"))
-}
-
 pub fn check_site_visibility_valid(
   current_private_instance: bool,
   current_federation_enabled: bool,
@@ -238,32 +268,47 @@ pub fn check_site_visibility_valid(
   let federation_enabled = new_federation_enabled.unwrap_or(current_federation_enabled);
 
   if private_instance && federation_enabled {
-    return Err(LemmyError::from_message(
-      "cant_enable_private_instance_and_federation_together",
-    ));
+    Err(LemmyErrorType::CantEnablePrivateInstanceAndFederationTogether.into())
+  } else {
+    Ok(())
   }
+}
 
-  Ok(())
+pub fn check_url_scheme(url: &Option<Url>) -> LemmyResult<()> {
+  if let Some(url) = url {
+    if !ALLOWED_POST_URL_SCHEMES.contains(&url.scheme()) {
+      Err(LemmyErrorType::InvalidUrlScheme.into())
+    } else {
+      Ok(())
+    }
+  } else {
+    Ok(())
+  }
 }
 
 #[cfg(test)]
 mod tests {
-  use super::build_totp_2fa;
-  use crate::utils::validation::{
-    build_and_check_regex,
-    check_site_visibility_valid,
-    clean_url_params,
-    generate_totp_2fa_secret,
-    is_valid_actor_name,
-    is_valid_bio_field,
-    is_valid_display_name,
-    is_valid_matrix_id,
-    is_valid_post_title,
-    site_description_length_check,
-    site_name_length_check,
-    BIO_MAX_LENGTH,
-    SITE_DESCRIPTION_MAX_LENGTH,
-    SITE_NAME_MAX_LENGTH,
+  #![allow(clippy::unwrap_used)]
+  #![allow(clippy::indexing_slicing)]
+
+  use crate::{
+    error::LemmyErrorType,
+    utils::validation::{
+      build_and_check_regex,
+      check_site_visibility_valid,
+      check_url_scheme,
+      clean_url_params,
+      is_valid_actor_name,
+      is_valid_bio_field,
+      is_valid_display_name,
+      is_valid_matrix_id,
+      is_valid_post_title,
+      site_description_length_check,
+      site_name_length_check,
+      BIO_MAX_LENGTH,
+      SITE_DESCRIPTION_MAX_LENGTH,
+      SITE_NAME_MAX_LENGTH,
+    },
   };
   use url::Url;
 
@@ -283,9 +328,13 @@ mod tests {
   fn regex_checks() {
     assert!(is_valid_post_title("hi").is_err());
     assert!(is_valid_post_title("him").is_ok());
+    assert!(is_valid_post_title("  him  ").is_ok());
     assert!(is_valid_post_title("n\n\n\n\nanother").is_err());
     assert!(is_valid_post_title("hello there!\n this is a test.").is_err());
     assert!(is_valid_post_title("hello there! this is a test.").is_ok());
+    assert!(is_valid_post_title(("12345".repeat(40) + "x").as_str()).is_err());
+    assert!(is_valid_post_title("12345".repeat(40).as_str()).is_ok());
+    assert!(is_valid_post_title((("12345".repeat(40)) + "  ").as_str()).is_ok());
   }
 
   #[test]
@@ -293,8 +342,18 @@ mod tests {
     let actor_name_max_length = 20;
     assert!(is_valid_actor_name("Hello_98", actor_name_max_length).is_ok());
     assert!(is_valid_actor_name("ten", actor_name_max_length).is_ok());
+    assert!(is_valid_actor_name("تجريب", actor_name_max_length).is_ok());
+    assert!(is_valid_actor_name("تجريب_123", actor_name_max_length).is_ok());
+    assert!(is_valid_actor_name("Владимир", actor_name_max_length).is_ok());
+
+    // mixed scripts
+    assert!(is_valid_actor_name("تجريب_abc", actor_name_max_length).is_err());
+    assert!(is_valid_actor_name("Влад_abc", actor_name_max_length).is_err());
+    // dash
     assert!(is_valid_actor_name("Hello-98", actor_name_max_length).is_err());
+    // too short
     assert!(is_valid_actor_name("a", actor_name_max_length).is_err());
+    // empty
     assert!(is_valid_actor_name("", actor_name_max_length).is_err());
   }
 
@@ -303,6 +362,13 @@ mod tests {
     let actor_name_max_length = 20;
     assert!(is_valid_display_name("hello @there", actor_name_max_length).is_ok());
     assert!(is_valid_display_name("@hello there", actor_name_max_length).is_err());
+    assert!(is_valid_display_name("\u{200d}hello", actor_name_max_length).is_err());
+    assert!(is_valid_display_name(
+      "\u{1f3f3}\u{fe0f}\u{200d}\u{26a7}\u{fe0f}Name",
+      actor_name_max_length
+    )
+    .is_ok());
+    assert!(is_valid_display_name("\u{2003}1\u{ffa0}2\u{200d}", actor_name_max_length).is_err());
 
     // Make sure zero-space with an @ doesn't work
     assert!(
@@ -320,16 +386,11 @@ mod tests {
   #[test]
   fn test_valid_matrix_id() {
     assert!(is_valid_matrix_id("@dess:matrix.org").is_ok());
+    assert!(is_valid_matrix_id("@dess:matrix.org:443").is_ok());
     assert!(is_valid_matrix_id("dess:matrix.org").is_err());
     assert!(is_valid_matrix_id(" @dess:matrix.org").is_err());
     assert!(is_valid_matrix_id("@dess:matrix.org t").is_err());
-  }
-
-  #[test]
-  fn test_build_totp() {
-    let generated_secret = generate_totp_2fa_secret();
-    let totp = build_totp_2fa("lemmy", "my_name", &generated_secret);
-    assert!(totp.is_ok());
+    assert!(is_valid_matrix_id("@dess:matrix.org t").is_err());
   }
 
   #[test]
@@ -343,9 +404,9 @@ mod tests {
         &(0..SITE_NAME_MAX_LENGTH + 1)
           .map(|_| 'A')
           .collect::<String>(),
-        "site_name_length_overflow",
+        LemmyErrorType::SiteNameLengthOverflow,
       ),
-      (&String::new(), "site_name_required"),
+      (&String::new(), LemmyErrorType::SiteNameRequired),
     ];
 
     valid_names.iter().for_each(|valid_name| {
@@ -359,15 +420,12 @@ mod tests {
 
     invalid_names
       .iter()
-      .for_each(|&(invalid_name, expected_err)| {
+      .for_each(|(invalid_name, expected_err)| {
         let result = site_name_length_check(invalid_name);
 
         assert!(result.is_err());
         assert!(
-          result
-            .unwrap_err()
-            .message
-            .eq(&Some(String::from(expected_err))),
+          result.unwrap_err().error_type.eq(&expected_err.clone()),
           "Testing {}, expected error {}",
           invalid_name,
           expected_err
@@ -386,8 +444,8 @@ mod tests {
       invalid_result.is_err()
         && invalid_result
           .unwrap_err()
-          .message
-          .eq(&Some(String::from("bio_length_overflow")))
+          .error_type
+          .eq(&LemmyErrorType::BioLengthOverflow)
     );
   }
 
@@ -410,8 +468,8 @@ mod tests {
       invalid_result.is_err()
         && invalid_result
           .unwrap_err()
-          .message
-          .eq(&Some(String::from("site_description_length_overflow")))
+          .error_type
+          .eq(&LemmyErrorType::SiteDescriptionLengthOverflow)
     );
   }
 
@@ -429,22 +487,19 @@ mod tests {
   #[test]
   fn test_too_permissive_slur_regex() {
     let match_everything_regexes = [
-      (&Some("["), "invalid_regex"),
-      (&Some("(foo|bar|)"), "permissive_regex"),
-      (&Some(".*"), "permissive_regex"),
+      (&Some("["), LemmyErrorType::InvalidRegex),
+      (&Some("(foo|bar|)"), LemmyErrorType::PermissiveRegex),
+      (&Some(".*"), LemmyErrorType::PermissiveRegex),
     ];
 
     match_everything_regexes
       .iter()
-      .for_each(|&(regex_str, expected_err)| {
+      .for_each(|(regex_str, expected_err)| {
         let result = build_and_check_regex(regex_str);
 
         assert!(result.is_err());
         assert!(
-          result
-            .unwrap_err()
-            .message
-            .eq(&Some(String::from(expected_err))),
+          result.unwrap_err().error_type.eq(&expected_err.clone()),
           "Testing regex {:?}, expected error {}",
           regex_str,
           expected_err
@@ -462,5 +517,18 @@ mod tests {
     assert!(check_site_visibility_valid(false, true, &None, &None).is_ok());
     assert!(check_site_visibility_valid(false, false, &Some(true), &None).is_ok());
     assert!(check_site_visibility_valid(false, false, &None, &Some(true)).is_ok());
+  }
+
+  #[test]
+  fn test_check_url_scheme() {
+    assert!(check_url_scheme(&None).is_ok());
+    assert!(check_url_scheme(&Some(Url::parse("http://example.com").unwrap())).is_ok());
+    assert!(check_url_scheme(&Some(Url::parse("https://example.com").unwrap())).is_ok());
+    assert!(check_url_scheme(&Some(Url::parse("https://example.com").unwrap())).is_ok());
+    assert!(check_url_scheme(&Some(Url::parse("ftp://example.com").unwrap())).is_err());
+    assert!(check_url_scheme(&Some(Url::parse("javascript:void").unwrap())).is_err());
+
+    let magnet_link="magnet:?xt=urn:btih:4b390af3891e323778959d5abfff4b726510f14c&dn=Ravel%20Complete%20Piano%20Sheet%20Music%20-%20Public%20Domain&tr=udp%3A%2F%2Fopen.tracker.cl%3A1337%2Fannounce";
+    assert!(check_url_scheme(&Some(Url::parse(magnet_link).unwrap())).is_ok());
   }
 }

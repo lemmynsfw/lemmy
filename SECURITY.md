@@ -2,4 +2,4 @@
 
 ## Reporting a Vulnerability
 
-Contact [security@lemmy.ml](mailto:security@lemmy.ml) for any security-related issues.
+Use [Github's security advisory issue system](https://github.com/LemmyNet/lemmy/security/advisories/new).

@@ -1,6 +1,7 @@
 use crate::newtypes::{CommentId, CommentReportId, PersonId};
 #[cfg(feature = "full")]
 use crate::schema::comment_report;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 #[cfg(feature = "full")]
@@ -8,9 +9,13 @@ use ts_rs::TS;
 
 #[skip_serializing_none]
 #[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(feature = "full", derive(Queryable, Associations, Identifiable, TS))]
+#[cfg_attr(
+  feature = "full",
+  derive(Queryable, Selectable, Associations, Identifiable, TS)
+)]
 #[cfg_attr(feature = "full", diesel(belongs_to(crate::source::comment::Comment)))]
 #[cfg_attr(feature = "full", diesel(table_name = comment_report))]
+#[cfg_attr(feature = "full", diesel(check_for_backend(diesel::pg::Pg)))]
 #[cfg_attr(feature = "full", ts(export))]
 /// A comment report.
 pub struct CommentReport {
@@ -21,8 +26,8 @@ pub struct CommentReport {
   pub reason: String,
   pub resolved: bool,
   pub resolver_id: Option<PersonId>,
-  pub published: chrono::NaiveDateTime,
-  pub updated: Option<chrono::NaiveDateTime>,
+  pub published: DateTime<Utc>,
+  pub updated: Option<DateTime<Utc>>,
 }
 
 #[derive(Clone)]

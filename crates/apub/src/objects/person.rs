@@ -1,6 +1,7 @@
 use crate::{
+  activities::GetActorType,
   check_apub_id_valid_with_strictness,
-  fetch_local_site_data,
+  local_site_data_cached,
   objects::{instance::fetch_instance_actor_for_object, read_from_string_or_source_opt},
   protocol::{
     objects::{
@@ -16,13 +17,16 @@ use activitypub_federation::{
   protocol::verification::verify_domains_match,
   traits::{Actor, Object},
 };
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use lemmy_api_common::{
   context::LemmyContext,
   utils::{generate_outbox_url, local_site_opt_to_slur_regex},
 };
 use lemmy_db_schema::{
-  source::person::{Person as DbPerson, PersonInsertForm, PersonUpdateForm},
+  source::{
+    activity::ActorType,
+    person::{Person as DbPerson, PersonInsertForm, PersonUpdateForm},
+  },
   traits::{ApubActor, Crud},
   utils::naive_now,
 };
@@ -31,7 +35,6 @@ use lemmy_utils::{
   utils::{
     markdown::markdown_to_html,
     slurs::{check_slurs, check_slurs_opt},
-    time::convert_datetime,
   },
 };
 use std::ops::Deref;
@@ -59,7 +62,7 @@ impl Object for ApubPerson {
   type Kind = Person;
   type Error = LemmyError;
 
-  fn last_refreshed_at(&self) -> Option<NaiveDateTime> {
+  fn last_refreshed_at(&self) -> Option<DateTime<Utc>> {
     Some(self.last_refreshed_at)
   }
 
@@ -69,7 +72,7 @@ impl Object for ApubPerson {
     context: &Data<Self::DataType>,
   ) -> Result<Option<Self>, LemmyError> {
     Ok(
-      DbPerson::read_from_apub_id(context.pool(), &object_id.into())
+      DbPerson::read_from_apub_id(&mut context.pool(), &object_id.into())
         .await?
         .map(Into::into),
     )
@@ -77,8 +80,11 @@ impl Object for ApubPerson {
 
   #[tracing::instrument(skip_all)]
   async fn delete(self, context: &Data<Self::DataType>) -> Result<(), LemmyError> {
-    let form = PersonUpdateForm::builder().deleted(Some(true)).build();
-    DbPerson::update(context.pool(), self.id, &form).await?;
+    let form = PersonUpdateForm {
+      deleted: Some(true),
+      ..Default::default()
+    };
+    DbPerson::update(&mut context.pool(), self.id, &form).await?;
     Ok(())
   }
 
@@ -100,13 +106,13 @@ impl Object for ApubPerson {
       icon: self.avatar.clone().map(ImageObject::new),
       image: self.banner.clone().map(ImageObject::new),
       matrix_user_id: self.matrix_user_id.clone(),
-      published: Some(convert_datetime(self.published)),
+      published: Some(self.published),
       outbox: generate_outbox_url(&self.actor_id)?.into(),
       endpoints: self.shared_inbox_url.clone().map(|s| Endpoints {
         shared_inbox: s.into(),
       }),
       public_key: self.public_key(),
-      updated: self.updated.map(convert_datetime),
+      updated: self.updated,
       inbox: self.inbox_url.clone().into(),
     };
     Ok(person)
@@ -118,19 +124,13 @@ impl Object for ApubPerson {
     expected_domain: &Url,
     context: &Data<Self::DataType>,
   ) -> Result<(), LemmyError> {
-    let local_site_data = fetch_local_site_data(context.pool()).await?;
+    let local_site_data = local_site_data_cached(&mut context.pool()).await?;
     let slur_regex = &local_site_opt_to_slur_regex(&local_site_data.local_site);
-
     check_slurs(&person.preferred_username, slur_regex)?;
     check_slurs_opt(&person.name, slur_regex)?;
 
     verify_domains_match(person.id.inner(), expected_domain)?;
-    check_apub_id_valid_with_strictness(
-      person.id.inner(),
-      false,
-      &local_site_data,
-      context.settings(),
-    )?;
+    check_apub_id_valid_with_strictness(person.id.inner(), false, context).await?;
 
     let bio = read_from_string_or_source_opt(&person.summary, &None, &person.source);
     check_slurs_opt(&bio, slur_regex)?;
@@ -144,6 +144,8 @@ impl Object for ApubPerson {
   ) -> Result<ApubPerson, LemmyError> {
     let instance_id = fetch_instance_actor_for_object(&person.id, context).await?;
 
+    let bio = read_from_string_or_source_opt(&person.summary, &None, &person.source);
+
     // Some Mastodon users have `name: ""` (empty string), need to convert that to `None`
     // https://github.com/mastodon/mastodon/issues/25233
     let display_name = person.name.filter(|n| !n.is_empty());
@@ -156,12 +158,11 @@ impl Object for ApubPerson {
       deleted: Some(false),
       avatar: person.icon.map(|i| i.url.into()),
       banner: person.image.map(|i| i.url.into()),
-      published: person.published.map(|u| u.naive_local()),
-      updated: person.updated.map(|u| u.naive_local()),
+      published: person.published.map(Into::into),
+      updated: person.updated.map(Into::into),
       actor_id: Some(person.id.into()),
-      bio: read_from_string_or_source_opt(&person.summary, &None, &person.source),
+      bio,
       local: Some(false),
-      admin: Some(false),
       bot_account: Some(person.kind == UserTypes::Service),
       private_key: None,
       public_key: person.public_key.public_key_pem,
@@ -171,7 +172,7 @@ impl Object for ApubPerson {
       matrix_user_id: person.matrix_user_id,
       instance_id,
     };
-    let person = DbPerson::upsert(context.pool(), &person_form).await?;
+    let person = DbPerson::upsert(&mut context.pool(), &person_form).await?;
 
     Ok(person.into())
   }
@@ -199,6 +200,12 @@ impl Actor for ApubPerson {
   }
 }
 
+impl GetActorType for ApubPerson {
+  fn actor_type(&self) -> ActorType {
+    ActorType::Person
+  }
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
   use super::*;
@@ -211,58 +218,64 @@ pub(crate) mod tests {
   };
   use activitypub_federation::fetch::object_id::ObjectId;
   use lemmy_db_schema::{source::site::Site, traits::Crud};
+  use lemmy_utils::error::LemmyResult;
   use serial_test::serial;
 
-  pub(crate) async fn parse_lemmy_person(context: &Data<LemmyContext>) -> (ApubPerson, ApubSite) {
-    let site = parse_lemmy_instance(context).await;
-    let json = file_to_json_object("assets/lemmy/objects/person.json").unwrap();
-    let url = Url::parse("https://enterprise.lemmy.ml/u/picard").unwrap();
-    ApubPerson::verify(&json, &url, context).await.unwrap();
-    let person = ApubPerson::from_json(json, context).await.unwrap();
+  pub(crate) async fn parse_lemmy_person(
+    context: &Data<LemmyContext>,
+  ) -> LemmyResult<(ApubPerson, ApubSite)> {
+    let site = parse_lemmy_instance(context).await?;
+    let json = file_to_json_object("assets/lemmy/objects/person.json")?;
+    let url = Url::parse("https://enterprise.lemmy.ml/u/picard")?;
+    ApubPerson::verify(&json, &url, context).await?;
+    let person = ApubPerson::from_json(json, context).await?;
     assert_eq!(context.request_count(), 0);
-    (person, site)
+    Ok((person, site))
   }
 
   #[tokio::test]
   #[serial]
-  async fn test_parse_lemmy_person() {
-    let context = init_context().await;
-    let (person, site) = parse_lemmy_person(&context).await;
+  async fn test_parse_lemmy_person() -> LemmyResult<()> {
+    let context = init_context().await?;
+    let (person, site) = parse_lemmy_person(&context).await?;
 
     assert_eq!(person.display_name, Some("Jean-Luc Picard".to_string()));
     assert!(!person.local);
-    assert_eq!(person.bio.as_ref().unwrap().len(), 39);
+    assert_eq!(person.bio.as_ref().map(std::string::String::len), Some(39));
 
-    cleanup((person, site), &context).await;
+    cleanup((person, site), &context).await?;
+    Ok(())
   }
 
   #[tokio::test]
   #[serial]
-  async fn test_parse_pleroma_person() {
-    let context = init_context().await;
+  async fn test_parse_pleroma_person() -> LemmyResult<()> {
+    let context = init_context().await?;
 
     // create and parse a fake pleroma instance actor, to avoid network request during test
-    let mut json: Instance = file_to_json_object("assets/lemmy/objects/instance.json").unwrap();
-    json.id = ObjectId::parse("https://queer.hacktivis.me/").unwrap();
-    let url = Url::parse("https://queer.hacktivis.me/users/lanodan").unwrap();
-    ApubSite::verify(&json, &url, &context).await.unwrap();
-    let site = ApubSite::from_json(json, &context).await.unwrap();
+    let mut json: Instance = file_to_json_object("assets/lemmy/objects/instance.json")?;
+    json.id = ObjectId::parse("https://queer.hacktivis.me/")?;
+    let url = Url::parse("https://queer.hacktivis.me/users/lanodan")?;
+    ApubSite::verify(&json, &url, &context).await?;
+    let site = ApubSite::from_json(json, &context).await?;
 
-    let json = file_to_json_object("assets/pleroma/objects/person.json").unwrap();
-    ApubPerson::verify(&json, &url, &context).await.unwrap();
-    let person = ApubPerson::from_json(json, &context).await.unwrap();
+    let json = file_to_json_object("assets/pleroma/objects/person.json")?;
+    ApubPerson::verify(&json, &url, &context).await?;
+    let person = ApubPerson::from_json(json, &context).await?;
 
     assert_eq!(person.actor_id, url.into());
     assert_eq!(person.name, "lanodan");
     assert!(!person.local);
     assert_eq!(context.request_count(), 0);
-    assert_eq!(person.bio.as_ref().unwrap().len(), 873);
+    assert_eq!(person.bio.as_ref().map(std::string::String::len), Some(873));
 
-    cleanup((person, site), &context).await;
+    cleanup((person, site), &context).await?;
+    Ok(())
   }
 
-  async fn cleanup(data: (ApubPerson, ApubSite), context: &LemmyContext) {
-    DbPerson::delete(context.pool(), data.0.id).await.unwrap();
-    Site::delete(context.pool(), data.1.id).await.unwrap();
+  async fn cleanup(data: (ApubPerson, ApubSite), context: &LemmyContext) -> LemmyResult<()> {
+    DbPerson::delete(&mut context.pool(), data.0.id).await?;
+    Site::delete(&mut context.pool(), data.1.id).await?;
+    Ok(())
   }
 }

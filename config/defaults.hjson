@@ -34,7 +34,7 @@
     # Name of the postgres database for lemmy
     database: "string"
     # Maximum number of active sql connections
-    pool_size: 5
+    pool_size: 95
   }
   # Settings related to activitypub federation
   # Pictrs image server configuration.
@@ -43,6 +43,17 @@
     url: "http://localhost:8080/"
     # Set a custom pictrs API key. ( Required for deleting images )
     api_key: "string"
+    # By default the thumbnails for external links are stored in pict-rs. This ensures that they
+    # can be reliably retrieved and can be resized using pict-rs APIs. However it also increases
+    # storage usage. In case this is disabled, the Opengraph image is directly returned as
+    # thumbnail.
+    # 
+    # In some countries it is forbidden to copy preview images from newspaper articles and only
+    # hotlinking is allowed. If that is the case for your instance, make sure that this setting is
+    # disabled.
+    cache_external_link_previews: true
+    # Timeout for uploading images to pictrs (in seconds)
+    upload_timeout: 30
   }
   # Email sending configuration. All options except login/password are mandatory
   email: {
@@ -61,9 +72,9 @@
   setup: {
     # Username for the admin user
     admin_username: "admin"
-    # Password for the admin user. It must be at least 10 characters.
+    # Password for the admin user. It must be between 10 and 60 characters.
     admin_password: "tf6HHDS4RolWfFhk4Rq9"
-    # Name of the site (can be changed later)
+    # Name of the site, can be changed later. Maximum 20 characters.
     site_name: "My Lemmy Instance"
     # Email for the admin user (optional, can be omitted and set later through the website)
     admin_email: "user@example.com"
@@ -80,4 +91,11 @@
   worker_count: 0
   # The number of activitypub federation retry workers that can be in-flight concurrently
   retry_count: 0
+  prometheus: {
+    bind: "127.0.0.1"
+    port: 10002
+  }
+  # Sets a response Access-Control-Allow-Origin CORS header
+  # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin
+  cors_origin: "*"
 }

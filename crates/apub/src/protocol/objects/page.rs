@@ -17,11 +17,11 @@ use activitypub_federation::{
   },
   traits::{ActivityHandler, Object},
 };
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use lemmy_api_common::context::LemmyContext;
 use lemmy_db_schema::newtypes::DbUrl;
-use lemmy_utils::error::LemmyError;
+use lemmy_utils::error::{LemmyError, LemmyErrorType};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use serde_with::skip_serializing_none;
 use url::Url;
@@ -63,8 +63,8 @@ pub struct Page {
   pub(crate) image: Option<ImageObject>,
   pub(crate) comments_enabled: Option<bool>,
   pub(crate) sensitive: Option<bool>,
-  pub(crate) published: Option<DateTime<FixedOffset>>,
-  pub(crate) updated: Option<DateTime<FixedOffset>>,
+  pub(crate) published: Option<DateTime<Utc>>,
+  pub(crate) updated: Option<DateTime<Utc>>,
   pub(crate) language: Option<LanguageTag>,
   pub(crate) audience: Option<ObjectId<ApubCommunity>>,
 }
@@ -161,7 +161,7 @@ impl Page {
         .iter()
         .find(|a| a.kind == PersonOrGroupType::Person)
         .map(|a| ObjectId::<ApubPerson>::from(a.id.clone().into_inner()))
-        .ok_or_else(|| LemmyError::from_message("page does not specify creator person")),
+        .ok_or_else(|| LemmyErrorType::PageDoesNotSpecifyCreator.into()),
     }
   }
 }
@@ -208,7 +208,7 @@ impl InCommunity for Page {
               break c;
             }
           } else {
-            return Err(LemmyError::from_message("No community found in cc"));
+            Err(LemmyErrorType::NoCommunityFoundInCc)?
           }
         }
       }
@@ -216,7 +216,7 @@ impl InCommunity for Page {
         p.iter()
           .find(|a| a.kind == PersonOrGroupType::Group)
           .map(|a| ObjectId::<ApubCommunity>::from(a.id.clone().into_inner()))
-          .ok_or_else(|| LemmyError::from_message("page does not specify group"))?
+          .ok_or(LemmyErrorType::PageDoesNotSpecifyGroup)?
           .dereference(context)
           .await?
       }
