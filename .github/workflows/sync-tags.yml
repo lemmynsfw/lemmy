@@ -27,7 +27,7 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
       - run: |
-          git config --global --add safe.directory $(realpath .)
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name "xaegreal"
           git config user.email "xaeg@users.noreply.github.com"
           git remote add upstream https://github.com/${{ env.REMOTE_ORG }}/${{ env.REMOTE_REPO }}.git
