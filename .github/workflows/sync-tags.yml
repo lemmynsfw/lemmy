@@ -13,6 +13,7 @@ env:
   LOCAL_ORG: lemmynsfw
   LOCAL_REPO: lemmy
   LOCAL_BRANCH: main
+  POSTFIX: lemmynsfw
 
 jobs:
   sync:
@@ -23,23 +24,24 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-      - run: |
+      - name: Sync tags
+        run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name ${{ github.actor }}
           git config user.email "${{ github.actor }}@users.noreply.github.com"
           git remote add upstream https://github.com/${{ env.REMOTE_ORG }}/${{ env.REMOTE_REPO }}.git
           git fetch --tags --prune --prune-tags upstream
-          LAST_TAGS=$(git tag -l --sort=-committerdate | grep -v "lemmynsfw" | head -n 10)
-          git diff --cached --full-index upstream/${{ env.REMOTE_BRANCH }}..${{ env.LOCAL_BRANCH }} > /tmp/diff.patch
+          LAST_TAGS=$(git tag -l --sort=-committerdate | grep -v ${{ env.POSTFIX }} | head -n 10)
+          git diff --cached --full-index upstream/${{ env.REMOTE_BRANCH }} > /tmp/diff.patch
           for tag in $LAST_TAGS; do
-            if [ $(git tag -l "$tag"-lemmynsfw) ]; then
+            if [ $(git tag -l "$tag"-${{ env.POSTFIX }}) ]; then
               continue
             fi
             git checkout -b $tag $tag
             git apply /tmp/diff.patch
             git commit -m "Apply NSFW patch"
-            git tag $tag-lemmynsfw
-            git push origin tag $tag-lemmynsfw
+            git tag $tag-${{ env.POSTFIX }}
+            git push origin tag $tag-${{ env.POSTFIX }}
             git checkout ${{ env.LOCAL_BRANCH }}
             git branch -D $tag
           done
