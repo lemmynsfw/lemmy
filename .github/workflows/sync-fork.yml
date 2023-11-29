@@ -23,7 +23,7 @@ jobs:
         uses: tgymnich/fork-sync@v1.8
         with:
           token: ${{ env.PERSONAL_TOKEN }}
-          owner: ${{github.repository_owner}}
+          owner: ${{ github.repository_owner }}
           base: ${{ env.REMOTE_BRANCH }}
           head: ${{ env.LOCAL_BRANCH }}
           ignore_fail: true
@@ -32,7 +32,6 @@ jobs:
         uses: chachako/tags-sync@v1.0.1
         with:
           base-repository: ${{ env.REMOTE_ORG }}/${{ env.REMOTE_REPO }}
-          apply-patch: https://github.com/${{env.REMOTE_ORG}}/${{env.REMOTE_REPO}}/compare/${{env.REMOTE_BRANCH}}...${{env.LOCAL_ORG}}:${{env.LOCAL_REPO}}:${{env.LOCAL_BRANCH}}.patch
+          apply-patch: https://github.com/${{ env.REMOTE_ORG }}/${{ env.REMOTE_REPO }}/compare/${{ env.REMOTE_BRANCH }}...${{ env.LOCAL_ORG }}:${{ env.LOCAL_REPO }}:${{ env.LOCAL_BRANCH }}.patch
           patch-author: ${{ github.actor }}
-          patch-message: Apply NSFW patch
           github-token: ${{ env.PERSONAL_TOKEN }}
