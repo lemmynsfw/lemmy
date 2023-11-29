@@ -10,8 +10,6 @@ env:
   REMOTE_ORG: LemmyNet
   REMOTE_REPO: lemmy
   REMOTE_BRANCH: main
-  LOCAL_ORG: lemmynsfw
-  LOCAL_REPO: lemmy
   LOCAL_BRANCH: main
   POSTFIX: lemmynsfw
 
