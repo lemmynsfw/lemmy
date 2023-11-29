@@ -21,7 +21,12 @@ jobs:
       - name: Sync tags
         uses: chachako/tags-sync@v1.0.1
         with:
-          base-repository: ${{ env.REMOTE_ORG }}/${{ env.REMOTE_REPO }}
-          apply-patch: https://github.com/${{ env.REMOTE_ORG }}/${{ env.REMOTE_REPO }}/compare/${{ env.REMOTE_BRANCH }}...${{ env.LOCAL_ORG }}:${{ env.LOCAL_REPO }}:${{ env.LOCAL_BRANCH }}.patch
-          patch-author: ${{ github.actor }}
           github-token: ${{ env.PERSONAL_TOKEN }}
+          base-repository: ${{ env.REMOTE_ORG }}/${{ env.REMOTE_REPO }}
+          head-repository: ${{ env.LOCAL_ORG }}/${{ env.LOCAL_REPO }}
+          apply-patch: https://github.com/${{ env.REMOTE_ORG }}/${{ env.REMOTE_REPO }}/compare/${{ env.REMOTE_BRANCH }}...${{ env.LOCAL_ORG }}:${{ env.LOCAL_REPO }}:${{ env.LOCAL_BRANCH }}.patch
+          patch-message: Apply patch from ${apply-patch}
+          patch-author: ${{ github.actor }}
+          patch-author-email: github-actions[bot]@users.noreply.github.com
+          patch-committer: ${{ github.actor }}
+          patch-committer-email: github-actions[bot]@users.noreply.github.com
