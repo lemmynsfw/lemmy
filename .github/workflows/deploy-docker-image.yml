@@ -40,7 +40,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ env.LOCAL_ORG }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ env.PERSONAL_TOKEN }}
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
