@@ -2,12 +2,11 @@ name: Sync Fork
 
 on:
   schedule:
-    - cron: '*/30 * * * *' # every 30 minutes
+    - cron: "*/30 * * * *" # every 30 minutes
   workflow_dispatch: # on button click
 
 jobs:
   sync:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -17,4 +16,10 @@ jobs:
           owner: lemmynsfw
           base: main
           head: main
-          auto_approve: true
+      - name: Fetch all tags from upstream and prune
+        run: |
+          git remote add upstream https://github.com/LemmyNet/lemmy.git
+          git fetch --tags --prune --prune-tags upstream
+      - name: Push all tags to origin
+        run: |
+          git push origin --tags
