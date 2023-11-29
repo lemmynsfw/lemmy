@@ -39,6 +39,7 @@ jobs:
             fi
             git checkout -b $tag $tag
             git apply /tmp/diff.patch
+            git add .
             git commit -m "Apply NSFW patch"
             git tag $tag-${{ env.POSTFIX }}
             git push origin tag $tag-${{ env.POSTFIX }}
