@@ -27,6 +27,7 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
       - run: |
+          echo $PWD
           ls -al
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name "xaegreal"
