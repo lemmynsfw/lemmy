@@ -28,6 +28,4 @@ jobs:
         run: |
           git remote add upstream https://github.com/${{ env.REMOTE_ORG }}/${{ env.REMOTE_REPO }}.git
           git fetch --tags --prune --prune-tags upstream
-      - name: Push all tags to origin
-        run: |
           git push origin --tags
