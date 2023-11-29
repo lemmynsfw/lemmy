@@ -18,19 +18,27 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Sync tags
-        uses: chachako/tags-sync@v1.0.1
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          # github-token: ${{ env.PERSONAL_TOKEN }}
-          base-repository: ${{ env.REMOTE_ORG }}/${{ env.REMOTE_REPO }}
-          # head-repository: ${{ env.LOCAL_ORG }}/${{ env.LOCAL_REPO }}
-          # apply-patch: https://github.com/${{ env.REMOTE_ORG }}/${{ env.REMOTE_REPO }}/compare/${{ env.REMOTE_BRANCH }}...${{ env.LOCAL_ORG }}:${{ env.LOCAL_REPO }}:${{ env.LOCAL_BRANCH }}.patch
-          # patch-message: Apply patch from ${apply-patch}
-          patch-author: ${{ github.actor }}
-          patch-author-email: github-actions[bot]@users.noreply.github.com
-          # patch-committer: ${{ github.actor }}
-          # patch-committer-email: github-actions[bot]@users.noreply.github.com
-          scripts-after-sync: |
-            echo "Hello World!"
-            git tag -a v1.0 -m "my version 1.0"
-            git push origin v1.0
+          repository: ${{ env.LOCAL_ORG }}/${{ env.LOCAL_REPO }}
+          path: ${{ env.LOCAL_REPO }}
+          ref: ${{ env.LOCAL_BRANCH }}
+          fetch-depth: 0
+          fetch-tags: true
+      - run: |
+          git config user.name "xaegreal"
+          git config user.email "xaeg@users.noreply.github.com"
+          git remote add upstream https://github.com/${{ env.REMOTE_ORG }}/${{ env.REMOTE_REPO }}.git
+          git fetch --tags --prune --prune-tags upstream
+          NON_PATCHED=$(git tag -l --sort=-committerdate | head -n 10 | grep -v "lemmynsfw")
+          for tag in $NON_PATCHED; do
+            git checkout -b $tag $tag
+            wget -O diff.patch https://github.com/${REMOTE_ORG}/${REMOTE_REPO}/compare/${REMOTE_BRANCH}...${LOCAL_ORG}:${LOCAL_REPO}:${LOCAL_BRANCH}.patch
+            git apply diff.patch
+            git commit -m "Apply patch from ${REMOTE_ORG}/${REMOTE_REPO}#${tag}"
+            git tag $tag-lemmynsfw
+            git push origin tag $tag-lemmynsfw
+            git checkout ${{ env.LOCAL_BRANCH }}
+            git branch -D $tag
+          done
