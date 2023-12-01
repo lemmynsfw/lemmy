@@ -11,7 +11,7 @@ env:
   REMOTE_REPO: lemmy
   REMOTE_BRANCH: main
   LOCAL_BRANCH: main
-  POSTFIX: lemmynsfw
+  POSTFIX: nsfw
 
 jobs:
   sync:
