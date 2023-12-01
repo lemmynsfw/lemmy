@@ -203,7 +203,7 @@ async fn check_community_ban(
  * If the user is not subscribed to the community, don't allow to vote.
  * Add N seconds delay for subscriptions.
  */
-pub async fn check_downvote_permission(
+pub async fn check_vote_permission(
   data: &crate::post::CreatePostLike,
   person_id: PersonId,
   community_id: CommunityId,

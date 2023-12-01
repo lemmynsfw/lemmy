@@ -8,7 +8,7 @@ use lemmy_api_common::{
   utils::{
     check_bot_account,
     check_community_user_action,
-    check_downvote_permission,
+    check_vote_permission,
     check_downvotes_enabled,
     mark_post_as_read,
   },
@@ -48,7 +48,7 @@ pub async fn like_post(
   )
   .await?;
 
-  check_downvote_permission(
+  check_vote_permission(
     &data,
     local_user_view.person.id,
     post.community_id,
