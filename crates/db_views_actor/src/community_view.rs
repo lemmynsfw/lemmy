@@ -153,9 +153,9 @@ fn queries<'a>() -> Queries<
       query = query.filter(community::nsfw.eq(false).or(local_user::show_nsfw.eq(true)));
     } else {
       // No person in request, only show nsfw communities if show_nsfw is passed into request
-      if !options.show_nsfw {
-        query = query.filter(community::nsfw.eq(false));
-      }
+      // if !options.show_nsfw {
+      //   query = query.filter(community::nsfw.eq(false));
+      // }
     }
 
     let (limit, offset) = limit_and_offset(options.page, options.limit)?;
