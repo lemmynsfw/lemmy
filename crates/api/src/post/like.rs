@@ -48,14 +48,13 @@ pub async fn like_post(
   )
   .await?;
 
-  if data.score < 0 {
-    check_downvote_permission(
-      local_user_view.person.id,
-      post.community_id,
-      &mut context.pool(),
-    )
-    .await?;
-  }
+  check_downvote_permission(
+    &data,
+    local_user_view.person.id,
+    post.community_id,
+    &mut context.pool(),
+  )
+  .await?;
 
   let like_form = PostLikeForm {
     post_id: data.post_id,

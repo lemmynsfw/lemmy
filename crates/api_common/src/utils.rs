@@ -204,6 +204,7 @@ async fn check_community_ban(
  * Add N seconds delay for subscriptions.
  */
 pub async fn check_downvote_permission(
+  data: &crate::post::CreatePostLike,
   person_id: PersonId,
   community_id: CommunityId,
   pool: &mut DbPool<'_>,
@@ -211,6 +212,18 @@ pub async fn check_downvote_permission(
   use chrono::Duration;
   use lemmy_db_schema::source::community::CommunityFollower;
   use std::ops::Add;
+
+  // Allow upvote or removal of upvote
+  if data.score >= 0 {
+    return Ok(());
+  }
+  let community_view = CommunityView::read(pool, community_id, Some(person_id), false).await?;
+
+  // Allow downvote if the community is not local
+  if !community_view.community.local {
+    return Ok(());
+  }
+
   let follower =
     CommunityFollower::get_person_community_follow(pool, person_id, community_id).await?;
 
