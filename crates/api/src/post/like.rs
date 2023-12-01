@@ -8,6 +8,7 @@ use lemmy_api_common::{
   utils::{
     check_bot_account,
     check_community_user_action,
+    check_downvote_permission,
     check_downvotes_enabled,
     mark_post_as_read,
   },
@@ -46,6 +47,15 @@ pub async fn like_post(
     &mut context.pool(),
   )
   .await?;
+
+  if data.score < 0 {
+    check_downvote_permission(
+      local_user_view.person.id,
+      post.community_id,
+      &mut context.pool(),
+    )
+    .await?;
+  }
 
   let like_form = PostLikeForm {
     post_id: data.post_id,
