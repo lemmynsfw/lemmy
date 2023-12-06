@@ -405,7 +405,7 @@ fn queries<'a>() -> Queries<
     if !options
       .local_user
       .map(|l| l.local_user.show_nsfw)
-      .unwrap_or(false)
+      .unwrap_or(true)
     {
       query = query
         .filter(post::nsfw.eq(false))
