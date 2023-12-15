@@ -386,7 +386,7 @@ fn queries<'a>() -> Queries<
     if !options
       .local_user
       .map(|l| l.local_user.show_nsfw)
-      .unwrap_or(false)
+      .unwrap_or(true)
     {
       query = query
         .filter(post::nsfw.eq(false))
@@ -490,10 +490,16 @@ fn queries<'a>() -> Queries<
       query = query.filter(post_aggregates::published.gt(now() - interval));
     }
 
+    let tie_breaker = match options.sort.unwrap_or(SortType::Hot) {
+      // A second time-based sort would not be very useful
+      SortType::New | SortType::Old | SortType::NewComments => None,
+      _ => Some((Ord::Desc, field!(published))),
+    };
+
     let sorts = [
       Some((Ord::Desc, featured_field)),
       Some(main_sort),
-      Some((Ord::Desc, field!(post_id))),
+      tie_breaker,
     ];
     let sorts_iter = sorts.iter().flatten();
 
