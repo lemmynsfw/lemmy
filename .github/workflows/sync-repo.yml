@@ -52,7 +52,8 @@ jobs:
           git config user.email ${{ github.actor }}@users.noreply.github.com
           git remote add upstream https://github.com/${{ env.REMOTE_ORG }}/${{ env.REMOTE_REPO }}.git
           git fetch --tags --prune upstream
-          LAST_TAGS=$(git tag -l --sort=-committerdate | grep -v --max-count 10 ${{ env.POSTFIX }})
+          reverse_command=$(if command -v tac &> /dev/null; then echo "tac"; else echo "tail -r"; fi)
+          LAST_TAGS=$(git tag -l --sort=-committerdate | grep -v --max-count 10 ${{ env.POSTFIX }} | eval $reverse_command)
           git diff --cached --full-index upstream/${{ env.REMOTE_BRANCH }} > /tmp/diff.patch
           for tag in $LAST_TAGS; do
             if [ $(git tag -l $tag-${{ env.POSTFIX }}) ]; then
