@@ -1,0 +1,71 @@
+name: Sync repo with upstream
+
+on:
+  schedule:
+    - cron: "*/60 * * * *" # every hour
+  workflow_dispatch: # on button click
+
+env:
+  PERSONAL_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+  REMOTE_ORG: LemmyNet
+  REMOTE_REPO: lemmy
+  REMOTE_BRANCH: main
+  LOCAL_BRANCH: main
+  POSTFIX: nsfw
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          token: ${{ env.PERSONAL_TOKEN }}
+          path: repo
+
+      - name: Checkout sync repo
+        uses: actions/checkout@v4
+        with:
+          repository: xaegreal/fork-sync
+          path: fork-sync
+      - name: Install dependencies
+        run: |
+          cd fork-sync
+          npm install
+          npm run build
+
+      - name: Sync main branch
+        uses: ./fork-sync
+        with:
+          token: ${{ env.PERSONAL_TOKEN }}
+          owner: ${{ github.repository_owner }}
+          base: ${{ env.REMOTE_BRANCH }}
+          head: ${{ env.LOCAL_BRANCH }}
+
+      - name: Sync tags and apply patch
+        run: |
+          cd repo
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config user.name ${{ github.actor }}
+          git config user.email ${{ github.actor }}@users.noreply.github.com
+          git remote add upstream https://github.com/${{ env.REMOTE_ORG }}/${{ env.REMOTE_REPO }}.git
+          git fetch --tags --prune upstream
+          LAST_TAGS=$(git tag -l --sort=-committerdate | grep -v --max-count 10 ${{ env.POSTFIX }})
+          git diff --cached --full-index upstream/${{ env.REMOTE_BRANCH }} > /tmp/diff.patch
+          for tag in $LAST_TAGS; do
+            if [ $(git tag -l $tag-${{ env.POSTFIX }}) ]; then
+              continue
+            fi
+            git checkout -b $tag $tag
+            git apply --verbose --whitespace=fix --3way /tmp/diff.patch || true
+            git --no-pager diff --name-only --diff-filter=U --relative || true
+            git checkout --theirs .
+            git add .
+            git commit -m "Auto apply NSFW patch to $tag"
+            git tag $tag-${{ env.POSTFIX }}
+            git push origin tag $tag-${{ env.POSTFIX }}
+            git checkout ${{ env.LOCAL_BRANCH }}
+            git branch -D $tag
+          done
