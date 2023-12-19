@@ -17,22 +17,36 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Sync main branch
-        uses: tgymnich/fork-sync@v1.8
-        with:
-          token: ${{ env.PERSONAL_TOKEN }}
-          owner: ${{ github.repository_owner }}
-          base: ${{ env.REMOTE_BRANCH }}
-          head: ${{ env.LOCAL_BRANCH }}
-          ignore_fail: true
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
           token: ${{ env.PERSONAL_TOKEN }}
+          path: repo
+
+      - name: Checkout sync repo
+        uses: actions/checkout@v4
+        with:
+          repository: xaegreal/fork-sync
+          path: fork-sync
+      - name: Install dependencies
+        run: |
+          cd fork-sync
+          npm install
+          npm run build
+
+      - name: Sync main branch
+        uses: ./fork-sync
+        with:
+          token: ${{ env.PERSONAL_TOKEN }}
+          owner: ${{ github.repository_owner }}
+          base: ${{ env.REMOTE_BRANCH }}
+          head: ${{ env.LOCAL_BRANCH }}
+
       - name: Sync tags and apply patch
         run: |
+          cd repo
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name ${{ github.actor }}
           git config user.email ${{ github.actor }}@users.noreply.github.com
@@ -45,7 +59,9 @@ jobs:
               continue
             fi
             git checkout -b $tag $tag
-            git apply /tmp/diff.patch
+            git apply --verbose --whitespace=fix --3way /tmp/diff.patch || true
+            git --no-pager diff --name-only --diff-filter=U --relative || true
+            git checkout --theirs .
             git add .
             git commit -m "Auto apply NSFW patch to $tag"
             git tag $tag-${{ env.POSTFIX }}
