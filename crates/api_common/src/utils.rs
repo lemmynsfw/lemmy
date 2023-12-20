@@ -199,6 +199,46 @@ async fn check_community_ban(
   Ok(())
 }
 
+/**
+ * If the user is not subscribed to the community, don't allow to vote.
+ * Add N seconds delay for subscriptions.
+ */
+pub async fn check_vote_permission(
+  data: &crate::post::CreatePostLike,
+  person_id: PersonId,
+  community_id: CommunityId,
+  pool: &mut DbPool<'_>,
+) -> LemmyResult<()> {
+  use chrono::Duration;
+  use lemmy_db_schema::source::community::CommunityFollower;
+  use std::ops::Add;
+
+  // Allow upvote or removal of upvote
+  if data.score >= 0 {
+    return Ok(());
+  }
+  let community_view = CommunityView::read(pool, community_id, Some(person_id), false).await?;
+
+  // Allow downvote if the community is not local
+  if !community_view.community.local {
+    return Ok(());
+  }
+
+  let follower =
+    CommunityFollower::get_person_community_follow(pool, person_id, community_id).await?;
+
+  match follower {
+    Some(follower) => {
+      let now = Utc::now().timestamp();
+      if follower.published.add(Duration::minutes(10)).timestamp() > now {
+        Err(LemmyErrorType::DownvotesAreDisabled)?
+      }
+    }
+    None => Err(LemmyErrorType::DownvotesAreDisabled)?,
+  }
+  Ok(())
+}
+
 /// Check that the given user can perform a mod action in the community.
 ///
 /// In particular it checks that he is an admin or mod, wasn't banned and the community isn't
