@@ -23,11 +23,13 @@ use crate::{
     create_or_update::{note::CreateOrUpdateNote, page::CreateOrUpdatePage},
     CreateOrUpdateType,
   },
+  CONTEXT,
 };
 use activitypub_federation::{
   config::Data,
   fetch::object_id::ObjectId,
   kinds::{activity::AnnounceType, public},
+  protocol::context::WithContext,
   traits::{ActivityHandler, Actor},
 };
 use anyhow::anyhow;
@@ -42,6 +44,7 @@ use lemmy_db_schema::source::{
 use lemmy_db_views_actor::structs::{CommunityPersonBanView, CommunityView};
 use lemmy_utils::error::{LemmyError, LemmyErrorExt, LemmyErrorType, LemmyResult};
 use serde::Serialize;
+use std::ops::Deref;
 use tracing::info;
 use url::{ParseError, Url};
 use uuid::Uuid;
@@ -201,6 +204,7 @@ where
   Activity: ActivityHandler<Error = LemmyError>,
 {
   info!("Saving outgoing activity to queue {}", activity.id());
+  let activity = WithContext::new(activity, CONTEXT.deref().clone());
 
   let form = SentActivityForm {
     ap_id: activity.id().clone().into(),
