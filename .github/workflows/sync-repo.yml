@@ -28,7 +28,7 @@ jobs:
       - name: Checkout sync repo
         uses: actions/checkout@v4
         with:
-          repository: xaegreal/fork-sync
+          repository: xaegit/fork-sync
           path: fork-sync
       - name: Install dependencies
         run: |
