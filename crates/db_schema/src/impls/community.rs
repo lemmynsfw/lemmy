@@ -380,6 +380,7 @@ mod tests {
     },
     traits::{Bannable, Crud, Followable, Joinable},
     utils::build_db_pool_for_tests,
+    CommunityVisibility,
   };
   use pretty_assertions::assert_eq;
   use serial_test::serial;
@@ -436,6 +437,7 @@ mod tests {
       hidden: false,
       posting_restricted_to_mods: false,
       instance_id: inserted_instance.id,
+      visibility: CommunityVisibility::Public,
     };
 
     let community_follower_form = CommunityFollowerForm {
