@@ -115,7 +115,7 @@ pub async fn create_post(
   let nsfw = if community.nsfw {
     true
   } else {
-    data.nsfw.unwrap_or(false)
+    data.nsfw.unwrap_or(true)
   };
   let post_form = PostInsertForm::builder()
     .name(data.name.trim().to_string())
