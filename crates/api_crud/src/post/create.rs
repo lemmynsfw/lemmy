@@ -110,13 +110,20 @@ pub async fn create_post(
     }
   };
 
+  // if the community is NSFW flagged, then flag the post as NSFW no matter what the request data says
+  // not applicable to non-nsfw instances
+  let nsfw = if community.nsfw {
+    true
+  } else {
+    data.nsfw.unwrap_or(false)
+  };
   let post_form = PostInsertForm::builder()
     .name(data.name.trim().to_string())
     .url(url)
     .body(body)
     .community_id(data.community_id)
     .creator_id(local_user_view.person.id)
-    .nsfw(data.nsfw)
+    .nsfw(Some(nsfw))
     .embed_title(metadata.opengraph_data.title)
     .embed_description(metadata.opengraph_data.description)
     .embed_video_url(metadata.opengraph_data.embed_video_url)
