@@ -244,22 +244,6 @@ impl CommunityFollower {
     .await
   }
 
-  pub async fn get_person_community_follow(
-    pool: &mut DbPool<'_>,
-    person_id: PersonId,
-    community_id: CommunityId,
-  ) -> Result<Option<Self>, Error> {
-    use crate::{diesel::OptionalExtension, schema::community_follower::dsl::community_follower};
-    let conn = &mut get_conn(pool).await?;
-
-    community_follower
-      .find((person_id, community_id))
-      .first::<Self>(conn)
-      .await
-      .optional()
-  }
-}
-
 impl Queryable<sql_types::Nullable<sql_types::Bool>, Pg> for SubscribedType {
   type Row = Option<bool>;
   fn build(row: Self::Row) -> deserialize::Result<Self> {

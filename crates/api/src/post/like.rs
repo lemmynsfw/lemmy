@@ -6,11 +6,7 @@ use lemmy_api_common::{
   post::{CreatePostLike, PostResponse},
   send_activity::{ActivityChannel, SendActivityData},
   utils::{
-    check_bot_account,
-    check_community_user_action,
-    check_vote_permission,
-    check_downvotes_enabled,
-    mark_post_as_read,
+    check_bot_account, check_community_user_action, check_downvotes_enabled, mark_post_as_read,
   },
 };
 use lemmy_db_schema::{
@@ -43,14 +39,6 @@ pub async fn like_post(
 
   check_community_user_action(
     &local_user_view.person,
-    post.community_id,
-    &mut context.pool(),
-  )
-  .await?;
-
-  check_vote_permission(
-    &data,
-    local_user_view.person.id,
     post.community_id,
     &mut context.pool(),
   )

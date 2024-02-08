@@ -28,9 +28,7 @@ use lemmy_db_schema::{
 };
 use lemmy_db_views::{comment_view::CommentQuery, structs::LocalUserView};
 use lemmy_db_views_actor::structs::{
-  CommunityModeratorView,
-  CommunityPersonBanView,
-  CommunityView,
+  CommunityModeratorView, CommunityPersonBanView, CommunityView,
 };
 use lemmy_utils::{
   email::{send_email, translations::Lang},
@@ -201,46 +199,6 @@ async fn check_community_ban(
   let is_banned = CommunityPersonBanView::get(pool, person.id, community_id).await?;
   if is_banned {
     Err(LemmyErrorType::BannedFromCommunity)?
-  }
-  Ok(())
-}
-
-/**
- * If the user is not subscribed to the community, don't allow to vote.
- * Add N seconds delay for subscriptions.
- */
-pub async fn check_vote_permission(
-  data: &crate::post::CreatePostLike,
-  person_id: PersonId,
-  community_id: CommunityId,
-  pool: &mut DbPool<'_>,
-) -> LemmyResult<()> {
-  use chrono::Duration;
-  use lemmy_db_schema::source::community::CommunityFollower;
-  use std::ops::Add;
-
-  // Allow upvote or removal of upvote
-  if data.score >= 0 {
-    return Ok(());
-  }
-  let community_view = CommunityView::read(pool, community_id, Some(person_id), false).await?;
-
-  // Allow downvote if the community is not local
-  if !community_view.community.local {
-    return Ok(());
-  }
-
-  let follower =
-    CommunityFollower::get_person_community_follow(pool, person_id, community_id).await?;
-
-  match follower {
-    Some(follower) => {
-      let now = Utc::now().timestamp();
-      if follower.published.add(Duration::minutes(10)).timestamp() > now {
-        Err(LemmyErrorType::DownvotesAreDisabled)?
-      }
-    }
-    None => Err(LemmyErrorType::DownvotesAreDisabled)?,
   }
   Ok(())
 }
