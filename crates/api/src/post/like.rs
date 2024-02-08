@@ -6,7 +6,10 @@ use lemmy_api_common::{
   post::{CreatePostLike, PostResponse},
   send_activity::{ActivityChannel, SendActivityData},
   utils::{
-    check_bot_account, check_community_user_action, check_downvotes_enabled, mark_post_as_read,
+    check_bot_account,
+    check_community_user_action,
+    check_downvotes_enabled,
+    mark_post_as_read,
   },
 };
 use lemmy_db_schema::{

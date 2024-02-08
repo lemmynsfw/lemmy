@@ -243,6 +243,7 @@ impl CommunityFollower {
     .get_result(conn)
     .await
   }
+}
 
 impl Queryable<sql_types::Nullable<sql_types::Bool>, Pg> for SubscribedType {
   type Row = Option<bool>;
