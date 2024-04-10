@@ -15,7 +15,9 @@ import {
 
 beforeAll(setupLogins);
 
-afterAll(unfollows);
+afterAll(() => {
+  unfollows();
+});
 
 test("Follow local community", async () => {
   let user = await registerUser(beta, betaUrl);

@@ -9,14 +9,14 @@ use lemmy_db_schema::{
   traits::Blockable,
 };
 use lemmy_db_views::structs::LocalUserView;
-use lemmy_utils::error::{LemmyErrorExt, LemmyErrorType, LemmyResult};
+use lemmy_utils::error::{LemmyError, LemmyErrorExt, LemmyErrorType};
 
 #[tracing::instrument(skip(context))]
 pub async fn block_instance(
   data: Json<BlockInstance>,
   local_user_view: LocalUserView,
   context: Data<LemmyContext>,
-) -> LemmyResult<Json<BlockInstanceResponse>> {
+) -> Result<Json<BlockInstanceResponse>, LemmyError> {
   let instance_id = data.instance_id;
   let person_id = local_user_view.person.id;
   if local_user_view.person.instance_id == instance_id {

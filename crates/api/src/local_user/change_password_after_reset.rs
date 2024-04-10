@@ -10,13 +10,13 @@ use lemmy_db_schema::source::{
   login_token::LoginToken,
   password_reset_request::PasswordResetRequest,
 };
-use lemmy_utils::error::{LemmyErrorExt, LemmyErrorType, LemmyResult};
+use lemmy_utils::error::{LemmyError, LemmyErrorExt, LemmyErrorType};
 
 #[tracing::instrument(skip(context))]
 pub async fn change_password_after_reset(
   data: Json<PasswordChangeAfterReset>,
   context: Data<LemmyContext>,
-) -> LemmyResult<Json<SuccessResponse>> {
+) -> Result<Json<SuccessResponse>, LemmyError> {
   // Fetch the user_id from the token
   let token = data.token.clone();
   let local_user_id = PasswordResetRequest::read_from_token(&mut context.pool(), &token)

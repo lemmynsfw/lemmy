@@ -1,5 +1,5 @@
 use crate::{
-  error::{LemmyErrorExt, LemmyErrorType, LemmyResult},
+  error::{LemmyError, LemmyErrorExt, LemmyErrorType},
   settings::structs::Settings,
 };
 use html2text;
@@ -25,7 +25,7 @@ pub async fn send_email(
   to_username: &str,
   html: &str,
   settings: &Settings,
-) -> LemmyResult<()> {
+) -> Result<(), LemmyError> {
   let email_config = settings.email.clone().ok_or(LemmyErrorType::NoEmailSetup)?;
   let domain = settings.hostname.clone();
 

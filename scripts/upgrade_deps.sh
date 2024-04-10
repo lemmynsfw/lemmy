@@ -6,9 +6,9 @@ pushd ../
 cargo udeps --all-targets
 
 # Upgrade deps
-cargo upgrade
+cargo upgrade --workspace
 
-# Run clippy
-cargo clippy
+# Run check
+cargo check
 
 popd

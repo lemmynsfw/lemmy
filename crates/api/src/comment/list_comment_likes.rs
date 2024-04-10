@@ -5,7 +5,7 @@ use lemmy_api_common::{
   utils::is_mod_or_admin,
 };
 use lemmy_db_views::structs::{CommentView, LocalUserView, VoteView};
-use lemmy_utils::error::LemmyResult;
+use lemmy_utils::error::LemmyError;
 
 /// Lists likes for a comment
 #[tracing::instrument(skip(context))]
@@ -13,7 +13,7 @@ pub async fn list_comment_likes(
   data: Query<ListCommentLikes>,
   context: Data<LemmyContext>,
   local_user_view: LocalUserView,
-) -> LemmyResult<Json<ListCommentLikesResponse>> {
+) -> Result<Json<ListCommentLikesResponse>, LemmyError> {
   let comment_view = CommentView::read(
     &mut context.pool(),
     data.comment_id,

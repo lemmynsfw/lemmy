@@ -14,12 +14,12 @@ use lemmy_db_schema::{
   source::{activity::ActivitySendTargets, community::CommunityFollower},
   traits::Followable,
 };
-use lemmy_utils::error::{LemmyError, LemmyResult};
+use lemmy_utils::error::LemmyError;
 use url::Url;
 
 impl AcceptFollow {
   #[tracing::instrument(skip_all)]
-  pub async fn send(follow: Follow, context: &Data<LemmyContext>) -> LemmyResult<()> {
+  pub async fn send(follow: Follow, context: &Data<LemmyContext>) -> Result<(), LemmyError> {
     let user_or_community = follow.object.dereference_local(context).await?;
     let person = follow.actor.clone().dereference(context).await?;
     let accept = AcceptFollow {
@@ -52,7 +52,7 @@ impl ActivityHandler for AcceptFollow {
   }
 
   #[tracing::instrument(skip_all)]
-  async fn verify(&self, context: &Data<LemmyContext>) -> LemmyResult<()> {
+  async fn verify(&self, context: &Data<LemmyContext>) -> Result<(), LemmyError> {
     verify_urls_match(self.actor.inner(), self.object.object.inner())?;
     self.object.verify(context).await?;
     if let Some(to) = &self.to {
@@ -62,7 +62,7 @@ impl ActivityHandler for AcceptFollow {
   }
 
   #[tracing::instrument(skip_all)]
-  async fn receive(self, context: &Data<LemmyContext>) -> LemmyResult<()> {
+  async fn receive(self, context: &Data<LemmyContext>) -> Result<(), LemmyError> {
     insert_received_activity(&self.id, context).await?;
     let community = self.actor.dereference(context).await?;
     let person = self.object.actor.dereference(context).await?;

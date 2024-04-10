@@ -58,7 +58,10 @@ impl Object for SiteOrCommunity {
   }
 
   #[tracing::instrument(skip_all)]
-  async fn read_from_id(object_id: Url, data: &Data<Self::DataType>) -> LemmyResult<Option<Self>>
+  async fn read_from_id(
+    object_id: Url,
+    data: &Data<Self::DataType>,
+  ) -> Result<Option<Self>, LemmyError>
   where
     Self: Sized,
   {
@@ -71,11 +74,11 @@ impl Object for SiteOrCommunity {
     })
   }
 
-  async fn delete(self, _data: &Data<Self::DataType>) -> LemmyResult<()> {
+  async fn delete(self, _data: &Data<Self::DataType>) -> Result<(), LemmyError> {
     unimplemented!()
   }
 
-  async fn into_json(self, _data: &Data<Self::DataType>) -> LemmyResult<Self::Kind> {
+  async fn into_json(self, _data: &Data<Self::DataType>) -> Result<Self::Kind, LemmyError> {
     unimplemented!()
   }
 
@@ -84,7 +87,7 @@ impl Object for SiteOrCommunity {
     apub: &Self::Kind,
     expected_domain: &Url,
     data: &Data<Self::DataType>,
-  ) -> LemmyResult<()> {
+  ) -> Result<(), LemmyError> {
     match apub {
       InstanceOrGroup::Instance(i) => ApubSite::verify(i, expected_domain, data).await,
       InstanceOrGroup::Group(g) => ApubCommunity::verify(g, expected_domain, data).await,
@@ -92,7 +95,7 @@ impl Object for SiteOrCommunity {
   }
 
   #[tracing::instrument(skip_all)]
-  async fn from_json(apub: Self::Kind, data: &Data<Self::DataType>) -> LemmyResult<Self>
+  async fn from_json(apub: Self::Kind, data: &Data<Self::DataType>) -> Result<Self, LemmyError>
   where
     Self: Sized,
   {
@@ -114,7 +117,10 @@ impl SiteOrCommunity {
   }
 }
 
-async fn generate_cc(target: &SiteOrCommunity, pool: &mut DbPool<'_>) -> LemmyResult<Vec<Url>> {
+async fn generate_cc(
+  target: &SiteOrCommunity,
+  pool: &mut DbPool<'_>,
+) -> Result<Vec<Url>, LemmyError> {
   Ok(match target {
     SiteOrCommunity::Site(_) => Site::read_remote_sites(pool)
       .await?
@@ -133,7 +139,7 @@ pub(crate) async fn send_ban_from_site(
   ban: bool,
   expires: Option<i64>,
   context: Data<LemmyContext>,
-) -> LemmyResult<()> {
+) -> Result<(), LemmyError> {
   let site = SiteOrCommunity::Site(SiteView::read_local(&mut context.pool()).await?.site.into());
   let expires = check_expire_time(expires)?;
 

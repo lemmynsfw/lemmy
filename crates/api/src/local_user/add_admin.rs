@@ -13,14 +13,14 @@ use lemmy_db_schema::{
 };
 use lemmy_db_views::structs::LocalUserView;
 use lemmy_db_views_actor::structs::PersonView;
-use lemmy_utils::error::{LemmyErrorExt, LemmyErrorType, LemmyResult};
+use lemmy_utils::error::{LemmyError, LemmyErrorExt, LemmyErrorType};
 
 #[tracing::instrument(skip(context))]
 pub async fn add_admin(
   data: Json<AddAdmin>,
   context: Data<LemmyContext>,
   local_user_view: LocalUserView,
-) -> LemmyResult<Json<AddAdminResponse>> {
+) -> Result<Json<AddAdminResponse>, LemmyError> {
   // Make sure user is an admin
   is_admin(&local_user_view)?;
 

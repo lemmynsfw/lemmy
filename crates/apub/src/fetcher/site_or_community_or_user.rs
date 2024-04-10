@@ -9,7 +9,7 @@ use activitypub_federation::{
 };
 use chrono::{DateTime, Utc};
 use lemmy_api_common::context::LemmyContext;
-use lemmy_utils::error::{LemmyError, LemmyResult};
+use lemmy_utils::error::LemmyError;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -44,19 +44,19 @@ impl Object for SiteOrCommunityOrUser {
   async fn read_from_id(
     _object_id: Url,
     _data: &Data<Self::DataType>,
-  ) -> LemmyResult<Option<Self>> {
+  ) -> Result<Option<Self>, LemmyError> {
     unimplemented!();
   }
 
   #[tracing::instrument(skip_all)]
-  async fn delete(self, data: &Data<Self::DataType>) -> LemmyResult<()> {
+  async fn delete(self, data: &Data<Self::DataType>) -> Result<(), LemmyError> {
     match self {
       SiteOrCommunityOrUser::Site(p) => p.delete(data).await,
       SiteOrCommunityOrUser::UserOrCommunity(p) => p.delete(data).await,
     }
   }
 
-  async fn into_json(self, _data: &Data<Self::DataType>) -> LemmyResult<Self::Kind> {
+  async fn into_json(self, _data: &Data<Self::DataType>) -> Result<Self::Kind, LemmyError> {
     unimplemented!()
   }
 
@@ -65,7 +65,7 @@ impl Object for SiteOrCommunityOrUser {
     apub: &Self::Kind,
     expected_domain: &Url,
     data: &Data<Self::DataType>,
-  ) -> LemmyResult<()> {
+  ) -> Result<(), LemmyError> {
     match apub {
       SiteOrPersonOrGroup::Instance(a) => ApubSite::verify(a, expected_domain, data).await,
       SiteOrPersonOrGroup::PersonOrGroup(a) => {
@@ -75,7 +75,7 @@ impl Object for SiteOrCommunityOrUser {
   }
 
   #[tracing::instrument(skip_all)]
-  async fn from_json(_apub: Self::Kind, _data: &Data<Self::DataType>) -> LemmyResult<Self> {
+  async fn from_json(_apub: Self::Kind, _data: &Data<Self::DataType>) -> Result<Self, LemmyError> {
     unimplemented!();
   }
 }

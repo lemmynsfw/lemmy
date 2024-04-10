@@ -15,14 +15,14 @@ use activitypub_federation::{
 use lemmy_api_common::context::LemmyContext;
 use lemmy_db_schema::source::activity::ActivitySendTargets;
 use lemmy_db_views::structs::PrivateMessageView;
-use lemmy_utils::error::{LemmyError, LemmyResult};
+use lemmy_utils::error::LemmyError;
 use url::Url;
 
 pub(crate) async fn send_create_or_update_pm(
   pm_view: PrivateMessageView,
   kind: CreateOrUpdateType,
   context: Data<LemmyContext>,
-) -> LemmyResult<()> {
+) -> Result<(), LemmyError> {
   let actor: ApubPerson = pm_view.creator.into();
   let recipient: ApubPerson = pm_view.recipient.into();
 
@@ -57,7 +57,7 @@ impl ActivityHandler for CreateOrUpdateChatMessage {
   }
 
   #[tracing::instrument(skip_all)]
-  async fn verify(&self, context: &Data<Self::DataType>) -> LemmyResult<()> {
+  async fn verify(&self, context: &Data<Self::DataType>) -> Result<(), LemmyError> {
     verify_person(&self.actor, context).await?;
     verify_domains_match(self.actor.inner(), self.object.id.inner())?;
     verify_domains_match(self.to[0].inner(), self.object.to[0].inner())?;
@@ -66,7 +66,7 @@ impl ActivityHandler for CreateOrUpdateChatMessage {
   }
 
   #[tracing::instrument(skip_all)]
-  async fn receive(self, context: &Data<Self::DataType>) -> LemmyResult<()> {
+  async fn receive(self, context: &Data<Self::DataType>) -> Result<(), LemmyError> {
     insert_received_activity(&self.id, context).await?;
     ApubPrivateMessage::from_json(self.object, context).await?;
     Ok(())

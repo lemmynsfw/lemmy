@@ -38,7 +38,7 @@ use lemmy_db_schema::{
   utils::naive_now,
 };
 use lemmy_utils::{
-  error::{LemmyError, LemmyResult},
+  error::LemmyError,
   utils::{
     markdown::markdown_to_html,
     slurs::{check_slurs, check_slurs_opt},
@@ -77,7 +77,7 @@ impl Object for ApubPerson {
   async fn read_from_id(
     object_id: Url,
     context: &Data<Self::DataType>,
-  ) -> LemmyResult<Option<Self>> {
+  ) -> Result<Option<Self>, LemmyError> {
     Ok(
       DbPerson::read_from_apub_id(&mut context.pool(), &object_id.into())
         .await?
@@ -86,7 +86,7 @@ impl Object for ApubPerson {
   }
 
   #[tracing::instrument(skip_all)]
-  async fn delete(self, context: &Data<Self::DataType>) -> LemmyResult<()> {
+  async fn delete(self, context: &Data<Self::DataType>) -> Result<(), LemmyError> {
     let form = PersonUpdateForm {
       deleted: Some(true),
       ..Default::default()
@@ -96,7 +96,7 @@ impl Object for ApubPerson {
   }
 
   #[tracing::instrument(skip_all)]
-  async fn into_json(self, _context: &Data<Self::DataType>) -> LemmyResult<Person> {
+  async fn into_json(self, _context: &Data<Self::DataType>) -> Result<Person, LemmyError> {
     let kind = if self.bot_account {
       UserTypes::Service
     } else {
@@ -130,7 +130,7 @@ impl Object for ApubPerson {
     person: &Person,
     expected_domain: &Url,
     context: &Data<Self::DataType>,
-  ) -> LemmyResult<()> {
+  ) -> Result<(), LemmyError> {
     let local_site_data = local_site_data_cached(&mut context.pool()).await?;
     let slur_regex = &local_site_opt_to_slur_regex(&local_site_data.local_site);
     check_slurs(&person.preferred_username, slur_regex)?;
@@ -145,7 +145,10 @@ impl Object for ApubPerson {
   }
 
   #[tracing::instrument(skip_all)]
-  async fn from_json(person: Person, context: &Data<Self::DataType>) -> LemmyResult<ApubPerson> {
+  async fn from_json(
+    person: Person,
+    context: &Data<Self::DataType>,
+  ) -> Result<ApubPerson, LemmyError> {
     let instance_id = fetch_instance_actor_for_object(&person.id, context).await?;
 
     let local_site = LocalSite::read(&mut context.pool()).await.ok();
@@ -225,6 +228,7 @@ pub(crate) mod tests {
   };
   use activitypub_federation::fetch::object_id::ObjectId;
   use lemmy_db_schema::source::site::Site;
+  use lemmy_utils::error::LemmyResult;
   use pretty_assertions::assert_eq;
   use serial_test::serial;
 

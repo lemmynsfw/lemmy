@@ -26,7 +26,7 @@ use activitypub_federation::{
 use chrono::{DateTime, Utc};
 use lemmy_api_common::{context::LemmyContext, utils::local_site_opt_to_slur_regex};
 use lemmy_utils::{
-  error::LemmyResult,
+  error::LemmyError,
   utils::slurs::{check_slurs, check_slurs_opt},
 };
 use serde::{Deserialize, Serialize};
@@ -76,7 +76,7 @@ impl Group {
     &self,
     expected_domain: &Url,
     context: &LemmyContext,
-  ) -> LemmyResult<()> {
+  ) -> Result<(), LemmyError> {
     check_apub_id_valid_with_strictness(self.id.inner(), true, context).await?;
     verify_domains_match(expected_domain, self.id.inner())?;
 

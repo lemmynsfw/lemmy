@@ -8,7 +8,7 @@ use lemmy_api_common::{
 };
 use lemmy_db_schema::source::local_user::{LocalUser, LocalUserUpdateForm};
 use lemmy_db_views::structs::{LocalUserView, SiteView};
-use lemmy_utils::error::{LemmyErrorType, LemmyResult};
+use lemmy_utils::error::{LemmyError, LemmyErrorType};
 
 /// Generate a new secret for two-factor-authentication. Afterwards you need to call [toggle_totp]
 /// to enable it. This can only be called if 2FA is currently disabled.
@@ -16,7 +16,7 @@ use lemmy_utils::error::{LemmyErrorType, LemmyResult};
 pub async fn generate_totp_secret(
   local_user_view: LocalUserView,
   context: Data<LemmyContext>,
-) -> LemmyResult<Json<GenerateTotpSecretResponse>> {
+) -> Result<Json<GenerateTotpSecretResponse>, LemmyError> {
   let site_view = SiteView::read_local(&mut context.pool()).await?;
 
   if local_user_view.local_user.totp_2fa_enabled {

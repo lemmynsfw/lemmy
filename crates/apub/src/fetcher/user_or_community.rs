@@ -10,7 +10,7 @@ use activitypub_federation::{
 use chrono::{DateTime, Utc};
 use lemmy_api_common::context::LemmyContext;
 use lemmy_db_schema::source::activity::ActorType;
-use lemmy_utils::error::{LemmyError, LemmyResult};
+use lemmy_utils::error::LemmyError;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -47,7 +47,10 @@ impl Object for UserOrCommunity {
   }
 
   #[tracing::instrument(skip_all)]
-  async fn read_from_id(object_id: Url, data: &Data<Self::DataType>) -> LemmyResult<Option<Self>> {
+  async fn read_from_id(
+    object_id: Url,
+    data: &Data<Self::DataType>,
+  ) -> Result<Option<Self>, LemmyError> {
     let person = ApubPerson::read_from_id(object_id.clone(), data).await?;
     Ok(match person {
       Some(o) => Some(UserOrCommunity::User(o)),
@@ -58,14 +61,14 @@ impl Object for UserOrCommunity {
   }
 
   #[tracing::instrument(skip_all)]
-  async fn delete(self, data: &Data<Self::DataType>) -> LemmyResult<()> {
+  async fn delete(self, data: &Data<Self::DataType>) -> Result<(), LemmyError> {
     match self {
       UserOrCommunity::User(p) => p.delete(data).await,
       UserOrCommunity::Community(p) => p.delete(data).await,
     }
   }
 
-  async fn into_json(self, _data: &Data<Self::DataType>) -> LemmyResult<Self::Kind> {
+  async fn into_json(self, _data: &Data<Self::DataType>) -> Result<Self::Kind, LemmyError> {
     unimplemented!()
   }
 
@@ -74,7 +77,7 @@ impl Object for UserOrCommunity {
     apub: &Self::Kind,
     expected_domain: &Url,
     data: &Data<Self::DataType>,
-  ) -> LemmyResult<()> {
+  ) -> Result<(), LemmyError> {
     match apub {
       PersonOrGroup::Person(a) => ApubPerson::verify(a, expected_domain, data).await,
       PersonOrGroup::Group(a) => ApubCommunity::verify(a, expected_domain, data).await,
@@ -82,7 +85,7 @@ impl Object for UserOrCommunity {
   }
 
   #[tracing::instrument(skip_all)]
-  async fn from_json(apub: Self::Kind, data: &Data<Self::DataType>) -> LemmyResult<Self> {
+  async fn from_json(apub: Self::Kind, data: &Data<Self::DataType>) -> Result<Self, LemmyError> {
     Ok(match apub {
       PersonOrGroup::Person(p) => UserOrCommunity::User(ApubPerson::from_json(p, data).await?),
       PersonOrGroup::Group(p) => {

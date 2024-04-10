@@ -22,7 +22,7 @@ use lemmy_db_views_actor::{
 };
 use lemmy_utils::{
   cache_header::cache_1hour,
-  error::{LemmyError, LemmyErrorType, LemmyResult},
+  error::{LemmyError, LemmyErrorType},
   utils::markdown::{markdown_to_html, sanitize_html},
 };
 use once_cell::sync::Lazy;
@@ -151,7 +151,7 @@ async fn get_feed_data(
   sort_type: SortType,
   limit: i64,
   page: i64,
-) -> LemmyResult<HttpResponse> {
+) -> Result<HttpResponse, LemmyError> {
   let site_view = SiteView::read_local(&mut context.pool()).await?;
 
   check_private_instance(&None, &site_view.local_site)?;
@@ -256,7 +256,7 @@ async fn get_feed_user(
   limit: &i64,
   page: &i64,
   user_name: &str,
-) -> LemmyResult<Channel> {
+) -> Result<Channel, LemmyError> {
   let site_view = SiteView::read_local(&mut context.pool()).await?;
   let person = Person::read_from_name(&mut context.pool(), user_name, false).await?;
 
@@ -292,7 +292,7 @@ async fn get_feed_community(
   limit: &i64,
   page: &i64,
   community_name: &str,
-) -> LemmyResult<Channel> {
+) -> Result<Channel, LemmyError> {
   let site_view = SiteView::read_local(&mut context.pool()).await?;
   let community = Community::read_from_name(&mut context.pool(), community_name, false).await?;
   if community.visibility != CommunityVisibility::Public {
@@ -335,7 +335,7 @@ async fn get_feed_front(
   limit: &i64,
   page: &i64,
   jwt: &str,
-) -> LemmyResult<Channel> {
+) -> Result<Channel, LemmyError> {
   let site_view = SiteView::read_local(&mut context.pool()).await?;
   let local_user = local_user_view_from_jwt(jwt, context).await?;
 
@@ -370,7 +370,7 @@ async fn get_feed_front(
 }
 
 #[tracing::instrument(skip_all)]
-async fn get_feed_inbox(context: &LemmyContext, jwt: &str) -> LemmyResult<Channel> {
+async fn get_feed_inbox(context: &LemmyContext, jwt: &str) -> Result<Channel, LemmyError> {
   let site_view = SiteView::read_local(&mut context.pool()).await?;
   let local_user = local_user_view_from_jwt(jwt, context).await?;
   let person_id = local_user.local_user.person_id;
@@ -425,7 +425,7 @@ fn create_reply_and_mention_items(
   replies: Vec<CommentReplyView>,
   mentions: Vec<PersonMentionView>,
   protocol_and_hostname: &str,
-) -> LemmyResult<Vec<Item>> {
+) -> Result<Vec<Item>, LemmyError> {
   let mut reply_items: Vec<Item> = replies
     .iter()
     .map(|r| {
@@ -438,7 +438,7 @@ fn create_reply_and_mention_items(
         protocol_and_hostname,
       )
     })
-    .collect::<LemmyResult<Vec<Item>>>()?;
+    .collect::<Result<Vec<Item>, LemmyError>>()?;
 
   let mut mention_items: Vec<Item> = mentions
     .iter()
@@ -452,7 +452,7 @@ fn create_reply_and_mention_items(
         protocol_and_hostname,
       )
     })
-    .collect::<LemmyResult<Vec<Item>>>()?;
+    .collect::<Result<Vec<Item>, LemmyError>>()?;
 
   reply_items.append(&mut mention_items);
   Ok(reply_items)
@@ -465,7 +465,7 @@ fn build_item(
   url: &str,
   content: &str,
   protocol_and_hostname: &str,
-) -> LemmyResult<Item> {
+) -> Result<Item, LemmyError> {
   // TODO add images
   let author_url = format!("{protocol_and_hostname}/u/{creator_name}");
   let guid = Some(Guid {
@@ -489,7 +489,10 @@ fn build_item(
 }
 
 #[tracing::instrument(skip_all)]
-fn create_post_items(posts: Vec<PostView>, protocol_and_hostname: &str) -> LemmyResult<Vec<Item>> {
+fn create_post_items(
+  posts: Vec<PostView>,
+  protocol_and_hostname: &str,
+) -> Result<Vec<Item>, LemmyError> {
   let mut items: Vec<Item> = Vec::new();
 
   for p in posts {

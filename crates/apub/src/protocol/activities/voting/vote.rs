@@ -6,7 +6,7 @@ use crate::{
 };
 use activitypub_federation::{config::Data, fetch::object_id::ObjectId};
 use lemmy_api_common::context::LemmyContext;
-use lemmy_utils::error::{LemmyError, LemmyErrorType, LemmyResult};
+use lemmy_utils::error::{LemmyError, LemmyErrorType};
 use serde::{Deserialize, Serialize};
 use strum_macros::Display;
 use url::Url;
@@ -51,7 +51,7 @@ impl From<&VoteType> for i16 {
 
 #[async_trait::async_trait]
 impl InCommunity for Vote {
-  async fn community(&self, context: &Data<LemmyContext>) -> LemmyResult<ApubCommunity> {
+  async fn community(&self, context: &Data<LemmyContext>) -> Result<ApubCommunity, LemmyError> {
     let community = self
       .object
       .dereference(context)

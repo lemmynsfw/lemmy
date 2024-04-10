@@ -5,14 +5,14 @@ use lemmy_api_common::{
 };
 use lemmy_db_views::structs::LocalUserView;
 use lemmy_db_views_actor::comment_reply_view::CommentReplyQuery;
-use lemmy_utils::error::LemmyResult;
+use lemmy_utils::error::LemmyError;
 
 #[tracing::instrument(skip(context))]
 pub async fn list_replies(
   data: Query<GetReplies>,
   context: Data<LemmyContext>,
   local_user_view: LocalUserView,
-) -> LemmyResult<Json<GetRepliesResponse>> {
+) -> Result<Json<GetRepliesResponse>, LemmyError> {
   let sort = data.sort;
   let page = data.page;
   let limit = data.limit;

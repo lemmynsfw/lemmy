@@ -5,12 +5,12 @@ use lemmy_api_common::{
   utils::build_federated_instances,
 };
 use lemmy_db_views::structs::SiteView;
-use lemmy_utils::error::LemmyResult;
+use lemmy_utils::error::LemmyError;
 
 #[tracing::instrument(skip(context))]
 pub async fn get_federated_instances(
   context: Data<LemmyContext>,
-) -> LemmyResult<Json<GetFederatedInstancesResponse>> {
+) -> Result<Json<GetFederatedInstancesResponse>, LemmyError> {
   let site_view = SiteView::read_local(&mut context.pool()).await?;
   let federated_instances =
     build_federated_instances(&site_view.local_site, &mut context.pool()).await?;

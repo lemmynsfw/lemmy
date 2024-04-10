@@ -25,7 +25,7 @@ use lemmy_db_schema::{
 use lemmy_db_views::structs::{CommentView, LocalUserView, PostView};
 use lemmy_db_views_actor::structs::CommunityView;
 use lemmy_utils::{
-  error::LemmyResult,
+  error::LemmyError,
   utils::{markdown::markdown_to_html, mention::MentionData},
 };
 
@@ -34,7 +34,7 @@ pub async fn build_comment_response(
   comment_id: CommentId,
   local_user_view: Option<LocalUserView>,
   recipient_ids: Vec<LocalUserId>,
-) -> LemmyResult<CommentResponse> {
+) -> Result<CommentResponse, LemmyError> {
   let person_id = local_user_view.map(|l| l.person.id);
   let comment_view = CommentView::read(&mut context.pool(), comment_id, person_id).await?;
   Ok(CommentResponse {
@@ -47,7 +47,7 @@ pub async fn build_community_response(
   context: &LemmyContext,
   local_user_view: LocalUserView,
   community_id: CommunityId,
-) -> LemmyResult<Json<CommunityResponse>> {
+) -> Result<Json<CommunityResponse>, LemmyError> {
   let is_mod_or_admin = is_mod_or_admin(&mut context.pool(), &local_user_view.person, community_id)
     .await
     .is_ok();
@@ -72,7 +72,7 @@ pub async fn build_post_response(
   community_id: CommunityId,
   person: &Person,
   post_id: PostId,
-) -> LemmyResult<Json<PostResponse>> {
+) -> Result<Json<PostResponse>, LemmyError> {
   let is_mod_or_admin = is_mod_or_admin(&mut context.pool(), person, community_id)
     .await
     .is_ok();
@@ -94,7 +94,7 @@ pub async fn send_local_notifs(
   person: &Person,
   do_send_email: bool,
   context: &LemmyContext,
-) -> LemmyResult<Vec<LocalUserId>> {
+) -> Result<Vec<LocalUserId>, LemmyError> {
   let mut recipient_ids = Vec::new();
   let inbox_link = format!("{}/inbox", context.settings().get_protocol_and_hostname());
 

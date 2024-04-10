@@ -8,14 +8,14 @@ use lemmy_db_schema::{
   traits::Crud,
 };
 use lemmy_db_views::structs::{LocalUserView, PrivateMessageView};
-use lemmy_utils::error::{LemmyErrorExt, LemmyErrorType, LemmyResult};
+use lemmy_utils::error::{LemmyError, LemmyErrorExt, LemmyErrorType};
 
 #[tracing::instrument(skip(context))]
 pub async fn mark_pm_as_read(
   data: Json<MarkPrivateMessageAsRead>,
   context: Data<LemmyContext>,
   local_user_view: LocalUserView,
-) -> LemmyResult<Json<PrivateMessageResponse>> {
+) -> Result<Json<PrivateMessageResponse>, LemmyError> {
   // Checking permissions
   let private_message_id = data.private_message_id;
   let orig_private_message = PrivateMessage::read(&mut context.pool(), private_message_id).await?;

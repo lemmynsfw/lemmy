@@ -8,7 +8,7 @@ use itertools::Itertools;
 use lemmy_api_common::context::LemmyContext;
 use lemmy_db_schema::traits::ApubActor;
 use lemmy_db_views::structs::LocalUserView;
-use lemmy_utils::error::{LemmyError, LemmyResult};
+use lemmy_utils::error::LemmyError;
 
 pub mod post_or_comment;
 pub mod search;
@@ -25,7 +25,7 @@ pub async fn resolve_actor_identifier<ActorType, DbActor>(
   context: &Data<LemmyContext>,
   local_user_view: &Option<LocalUserView>,
   include_deleted: bool,
-) -> LemmyResult<ActorType>
+) -> Result<ActorType, LemmyError>
 where
   ActorType: Object<DataType = LemmyContext, Error = LemmyError>
     + Object

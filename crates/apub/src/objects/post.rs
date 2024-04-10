@@ -45,7 +45,7 @@ use lemmy_db_schema::{
 };
 use lemmy_db_views_actor::structs::CommunityModeratorView;
 use lemmy_utils::{
-  error::{LemmyError, LemmyResult},
+  error::LemmyError,
   utils::{markdown::markdown_to_html, slurs::check_slurs_opt, validation::check_url_scheme},
 };
 use std::ops::Deref;
@@ -84,7 +84,7 @@ impl Object for ApubPost {
   async fn read_from_id(
     object_id: Url,
     context: &Data<Self::DataType>,
-  ) -> LemmyResult<Option<Self>> {
+  ) -> Result<Option<Self>, LemmyError> {
     Ok(
       Post::read_from_apub_id(&mut context.pool(), object_id)
         .await?
@@ -93,7 +93,7 @@ impl Object for ApubPost {
   }
 
   #[tracing::instrument(skip_all)]
-  async fn delete(self, context: &Data<Self::DataType>) -> LemmyResult<()> {
+  async fn delete(self, context: &Data<Self::DataType>) -> Result<(), LemmyError> {
     if !self.deleted {
       let form = PostUpdateForm {
         deleted: Some(true),
@@ -106,7 +106,7 @@ impl Object for ApubPost {
 
   // Turn a Lemmy post into an ActivityPub page that can be sent out over the network.
   #[tracing::instrument(skip_all)]
-  async fn into_json(self, context: &Data<Self::DataType>) -> LemmyResult<Page> {
+  async fn into_json(self, context: &Data<Self::DataType>) -> Result<Page, LemmyError> {
     let creator_id = self.creator_id;
     let creator = Person::read(&mut context.pool(), creator_id).await?;
     let community_id = self.community_id;
@@ -160,7 +160,7 @@ impl Object for ApubPost {
     page: &Page,
     expected_domain: &Url,
     context: &Data<Self::DataType>,
-  ) -> LemmyResult<()> {
+  ) -> Result<(), LemmyError> {
     // We can't verify the domain in case of mod action, because the mod may be on a different
     // instance from the post author.
     if !page.is_mod_action(context).await? {
@@ -182,7 +182,7 @@ impl Object for ApubPost {
   }
 
   #[tracing::instrument(skip_all)]
-  async fn from_json(page: Page, context: &Data<Self::DataType>) -> LemmyResult<ApubPost> {
+  async fn from_json(page: Page, context: &Data<Self::DataType>) -> Result<ApubPost, LemmyError> {
     let creator = page.creator()?.dereference(context).await?;
     let community = page.community(context).await?;
     if community.posting_restricted_to_mods {
@@ -307,6 +307,7 @@ mod tests {
     protocol::tests::file_to_json_object,
   };
   use lemmy_db_schema::source::site::Site;
+  use lemmy_utils::error::LemmyResult;
   use pretty_assertions::assert_eq;
   use serial_test::serial;
 

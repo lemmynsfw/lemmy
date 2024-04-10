@@ -6,13 +6,13 @@ use lemmy_db_schema::source::{
   private_message::PrivateMessage,
 };
 use lemmy_db_views::structs::LocalUserView;
-use lemmy_utils::error::{LemmyErrorExt, LemmyErrorType, LemmyResult};
+use lemmy_utils::error::{LemmyError, LemmyErrorExt, LemmyErrorType};
 
 #[tracing::instrument(skip(context))]
 pub async fn mark_all_notifications_read(
   context: Data<LemmyContext>,
   local_user_view: LocalUserView,
-) -> LemmyResult<Json<GetRepliesResponse>> {
+) -> Result<Json<GetRepliesResponse>, LemmyError> {
   let person_id = local_user_view.person.id;
 
   // Mark all comment_replies as read

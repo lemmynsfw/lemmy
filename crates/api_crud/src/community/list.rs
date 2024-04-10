@@ -6,14 +6,14 @@ use lemmy_api_common::{
 };
 use lemmy_db_views::structs::{LocalUserView, SiteView};
 use lemmy_db_views_actor::community_view::CommunityQuery;
-use lemmy_utils::error::LemmyResult;
+use lemmy_utils::error::LemmyError;
 
 #[tracing::instrument(skip(context))]
 pub async fn list_communities(
   data: Query<ListCommunities>,
   context: Data<LemmyContext>,
   local_user_view: Option<LocalUserView>,
-) -> LemmyResult<Json<ListCommunitiesResponse>> {
+) -> Result<Json<ListCommunitiesResponse>, LemmyError> {
   let local_site = SiteView::read_local(&mut context.pool()).await?;
   let is_admin = local_user_view
     .as_ref()

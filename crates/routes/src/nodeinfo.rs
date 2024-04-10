@@ -5,7 +5,7 @@ use lemmy_db_schema::RegistrationMode;
 use lemmy_db_views::structs::SiteView;
 use lemmy_utils::{
   cache_header::{cache_1hour, cache_3days},
-  error::{LemmyError, LemmyResult},
+  error::LemmyError,
   VERSION,
 };
 use serde::{Deserialize, Serialize};
@@ -24,7 +24,9 @@ pub fn config(cfg: &mut web::ServiceConfig) {
     );
 }
 
-async fn node_info_well_known(context: web::Data<LemmyContext>) -> LemmyResult<HttpResponse> {
+async fn node_info_well_known(
+  context: web::Data<LemmyContext>,
+) -> Result<HttpResponse, LemmyError> {
   let node_info = NodeInfoWellKnown {
     links: vec![NodeInfoWellKnownLinks {
       rel: Url::parse("http://nodeinfo.diaspora.software/ns/schema/2.0")?,

@@ -13,14 +13,14 @@ use lemmy_api_common::{
 use lemmy_db_schema::{newtypes::PersonId, source::local_site::LocalSite, utils::DbPool};
 use lemmy_db_views::structs::{CommentView, LocalUserView, PostView};
 use lemmy_db_views_actor::structs::{CommunityView, PersonView};
-use lemmy_utils::error::{LemmyErrorExt2, LemmyErrorType, LemmyResult};
+use lemmy_utils::error::{LemmyError, LemmyErrorExt2, LemmyErrorType};
 
 #[tracing::instrument(skip(context))]
 pub async fn resolve_object(
   data: Query<ResolveObject>,
   context: Data<LemmyContext>,
   local_user_view: Option<LocalUserView>,
-) -> LemmyResult<Json<ResolveObjectResponse>> {
+) -> Result<Json<ResolveObjectResponse>, LemmyError> {
   let local_site = LocalSite::read(&mut context.pool()).await?;
   check_private_instance(&local_user_view, &local_site)?;
   let person_id = local_user_view.map(|v| v.person.id);
@@ -46,7 +46,7 @@ async fn convert_response(
   object: SearchableObjects,
   user_id: Option<PersonId>,
   pool: &mut DbPool<'_>,
-) -> LemmyResult<Json<ResolveObjectResponse>> {
+) -> Result<Json<ResolveObjectResponse>, LemmyError> {
   use SearchableObjects::*;
   let removed_or_deleted;
   let mut res = ResolveObjectResponse::default();

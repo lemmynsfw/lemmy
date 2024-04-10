@@ -5,14 +5,14 @@ use lemmy_api_common::{
 };
 use lemmy_db_views::structs::LocalUserView;
 use lemmy_db_views_actor::person_mention_view::PersonMentionQuery;
-use lemmy_utils::error::LemmyResult;
+use lemmy_utils::error::LemmyError;
 
 #[tracing::instrument(skip(context))]
 pub async fn list_mentions(
   data: Query<GetPersonMentions>,
   context: Data<LemmyContext>,
   local_user_view: LocalUserView,
-) -> LemmyResult<Json<GetPersonMentionsResponse>> {
+) -> Result<Json<GetPersonMentionsResponse>, LemmyError> {
   let sort = data.sort;
   let page = data.page;
   let limit = data.limit;

@@ -24,7 +24,7 @@ use lemmy_db_schema::{
 };
 use lemmy_db_views::structs::{LocalUserView, PrivateMessageView};
 use lemmy_utils::{
-  error::{LemmyErrorExt, LemmyErrorType, LemmyResult},
+  error::{LemmyError, LemmyErrorExt, LemmyErrorType},
   utils::{markdown::markdown_to_html, validation::is_valid_body_field},
 };
 
@@ -33,7 +33,7 @@ pub async fn create_private_message(
   data: Json<CreatePrivateMessage>,
   context: Data<LemmyContext>,
   local_user_view: LocalUserView,
-) -> LemmyResult<Json<PrivateMessageResponse>> {
+) -> Result<Json<PrivateMessageResponse>, LemmyError> {
   let local_site = LocalSite::read(&mut context.pool()).await?;
 
   let slur_regex = local_site_to_slur_regex(&local_site);

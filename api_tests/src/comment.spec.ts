@@ -53,7 +53,9 @@ beforeAll(async () => {
   }
 });
 
-afterAll(unfollows);
+afterAll(() => {
+  unfollows();
+});
 
 function assertCommentFederation(
   commentOne?: CommentView,

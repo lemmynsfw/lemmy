@@ -15,14 +15,14 @@ use lemmy_db_views::{
   post_view::PostQuery,
   structs::{LocalUserView, PaginationCursor, SiteView},
 };
-use lemmy_utils::error::{LemmyError, LemmyErrorExt, LemmyErrorType, LemmyResult};
+use lemmy_utils::error::{LemmyError, LemmyErrorExt, LemmyErrorType};
 
 #[tracing::instrument(skip(context))]
 pub async fn list_posts(
   data: Query<GetPosts>,
   context: Data<LemmyContext>,
   local_user_view: Option<LocalUserView>,
-) -> LemmyResult<Json<GetPostsResponse>> {
+) -> Result<Json<GetPostsResponse>, LemmyError> {
   let local_site = SiteView::read_local(&mut context.pool()).await?;
 
   check_private_instance(&local_user_view, &local_site.local_site)?;

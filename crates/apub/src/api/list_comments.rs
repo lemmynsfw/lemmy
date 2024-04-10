@@ -15,14 +15,14 @@ use lemmy_db_schema::{
   traits::Crud,
 };
 use lemmy_db_views::{comment_view::CommentQuery, structs::LocalUserView};
-use lemmy_utils::error::{LemmyError, LemmyErrorExt, LemmyErrorType, LemmyResult};
+use lemmy_utils::error::{LemmyError, LemmyErrorExt, LemmyErrorType};
 
 #[tracing::instrument(skip(context))]
 pub async fn list_comments(
   data: Query<GetComments>,
   context: Data<LemmyContext>,
   local_user_view: Option<LocalUserView>,
-) -> LemmyResult<Json<GetCommentsResponse>> {
+) -> Result<Json<GetCommentsResponse>, LemmyError> {
   let local_site = LocalSite::read(&mut context.pool()).await?;
   check_private_instance(&local_user_view, &local_site)?;
 

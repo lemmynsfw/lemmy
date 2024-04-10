@@ -15,7 +15,7 @@ use lemmy_db_schema::{
   traits::Joinable,
 };
 use lemmy_db_views_actor::structs::CommunityModeratorView;
-use lemmy_utils::error::{LemmyError, LemmyResult};
+use lemmy_utils::error::LemmyError;
 use url::Url;
 
 #[derive(Clone, Debug)]
@@ -29,7 +29,10 @@ impl Collection for ApubCommunityModerators {
   type Error = LemmyError;
 
   #[tracing::instrument(skip_all)]
-  async fn read_local(owner: &Self::Owner, data: &Data<Self::DataType>) -> LemmyResult<Self::Kind> {
+  async fn read_local(
+    owner: &Self::Owner,
+    data: &Data<Self::DataType>,
+  ) -> Result<Self::Kind, LemmyError> {
     let moderators = CommunityModeratorView::for_community(&mut data.pool(), owner.id).await?;
     let ordered_items = moderators
       .into_iter()
@@ -47,7 +50,7 @@ impl Collection for ApubCommunityModerators {
     group_moderators: &GroupModerators,
     expected_domain: &Url,
     _data: &Data<Self::DataType>,
-  ) -> LemmyResult<()> {
+  ) -> Result<(), LemmyError> {
     verify_domains_match(&group_moderators.id, expected_domain)?;
     Ok(())
   }
@@ -57,7 +60,7 @@ impl Collection for ApubCommunityModerators {
     apub: Self::Kind,
     owner: &Self::Owner,
     data: &Data<Self::DataType>,
-  ) -> LemmyResult<Self> {
+  ) -> Result<Self, LemmyError> {
     let community_id = owner.id;
     let current_moderators =
       CommunityModeratorView::for_community(&mut data.pool(), community_id).await?;
@@ -115,6 +118,7 @@ mod tests {
     },
     traits::Crud,
   };
+  use lemmy_utils::error::LemmyResult;
   use pretty_assertions::assert_eq;
   use serial_test::serial;
 

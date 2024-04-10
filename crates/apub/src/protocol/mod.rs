@@ -7,7 +7,7 @@ use activitypub_federation::{
 };
 use lemmy_api_common::context::LemmyContext;
 use lemmy_db_schema::newtypes::DbUrl;
-use lemmy_utils::error::LemmyResult;
+use lemmy_utils::error::LemmyError;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::collections::HashMap;
 use url::Url;
@@ -71,7 +71,7 @@ impl<Kind: Id + DeserializeOwned + Send> IdOrNestedObject<Kind> {
       IdOrNestedObject::NestedObject(n) => n.object_id(),
     }
   }
-  pub(crate) async fn object(self, context: &Data<LemmyContext>) -> LemmyResult<Kind> {
+  pub(crate) async fn object(self, context: &Data<LemmyContext>) -> Result<Kind, LemmyError> {
     match self {
       // TODO: move IdOrNestedObject struct to library and make fetch_object_http private
       IdOrNestedObject::Id(i) => Ok(fetch_object_http(&i, context).await?.object),
@@ -83,25 +83,25 @@ impl<Kind: Id + DeserializeOwned + Send> IdOrNestedObject<Kind> {
 #[async_trait::async_trait]
 pub trait InCommunity {
   // TODO: after we use audience field and remove backwards compat, it should be possible to change
-  //       this to simply `fn community(&self)  -> LemmyResult<ObjectId<ApubCommunity>>`
-  async fn community(&self, context: &Data<LemmyContext>) -> LemmyResult<ApubCommunity>;
+  //       this to simply `fn community(&self)  -> Result<ObjectId<ApubCommunity>, LemmyError>`
+  async fn community(&self, context: &Data<LemmyContext>) -> Result<ApubCommunity, LemmyError>;
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
   use activitypub_federation::protocol::context::WithContext;
   use assert_json_diff::assert_json_include;
-  use lemmy_utils::error::LemmyResult;
+  use lemmy_utils::error::LemmyError;
   use serde::{de::DeserializeOwned, Serialize};
   use std::{collections::HashMap, fs::File, io::BufReader};
 
-  pub(crate) fn file_to_json_object<T: DeserializeOwned>(path: &str) -> LemmyResult<T> {
+  pub(crate) fn file_to_json_object<T: DeserializeOwned>(path: &str) -> Result<T, LemmyError> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
     Ok(serde_json::from_reader(reader)?)
   }
 
-  pub(crate) fn test_json<T: DeserializeOwned>(path: &str) -> LemmyResult<WithContext<T>> {
+  pub(crate) fn test_json<T: DeserializeOwned>(path: &str) -> Result<WithContext<T>, LemmyError> {
     file_to_json_object::<WithContext<T>>(path)
   }
 
@@ -109,7 +109,7 @@ pub(crate) mod tests {
   /// Ensures that there are no breaking changes in sent data.
   pub(crate) fn test_parse_lemmy_item<T: Serialize + DeserializeOwned + std::fmt::Debug>(
     path: &str,
-  ) -> LemmyResult<T> {
+  ) -> Result<T, LemmyError> {
     // parse file as T
     let parsed = file_to_json_object::<T>(path)?;
 

@@ -23,7 +23,7 @@ use lemmy_db_schema::{
 };
 use lemmy_db_views::structs::{CommentView, LocalUserView};
 use lemmy_utils::{
-  error::{LemmyErrorExt, LemmyErrorType, LemmyResult},
+  error::{LemmyError, LemmyErrorExt, LemmyErrorType},
   utils::{mention::scrape_text_for_mentions, validation::is_valid_body_field},
 };
 
@@ -32,7 +32,7 @@ pub async fn update_comment(
   data: Json<EditComment>,
   context: Data<LemmyContext>,
   local_user_view: LocalUserView,
-) -> LemmyResult<Json<CommentResponse>> {
+) -> Result<Json<CommentResponse>, LemmyError> {
   let local_site = LocalSite::read(&mut context.pool()).await?;
 
   let comment_id = data.comment_id;

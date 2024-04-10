@@ -18,7 +18,7 @@ use lemmy_db_schema::{
 use lemmy_db_views::structs::LocalUserView;
 use lemmy_db_views_actor::structs::PersonView;
 use lemmy_utils::{
-  error::{LemmyErrorExt, LemmyErrorType, LemmyResult},
+  error::{LemmyError, LemmyErrorExt, LemmyErrorType},
   utils::validation::is_valid_body_field,
 };
 
@@ -27,7 +27,7 @@ pub async fn ban_from_site(
   data: Json<BanPerson>,
   context: Data<LemmyContext>,
   local_user_view: LocalUserView,
-) -> LemmyResult<Json<BanPersonResponse>> {
+) -> Result<Json<BanPersonResponse>, LemmyError> {
   // Make sure user is an admin
   is_admin(&local_user_view)?;
 

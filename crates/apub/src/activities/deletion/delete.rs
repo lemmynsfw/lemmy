@@ -27,7 +27,7 @@ use lemmy_db_schema::{
   },
   traits::{Crud, Reportable},
 };
-use lemmy_utils::error::{LemmyError, LemmyErrorType, LemmyResult};
+use lemmy_utils::error::{LemmyError, LemmyErrorType};
 use url::Url;
 
 #[async_trait::async_trait]
@@ -44,13 +44,13 @@ impl ActivityHandler for Delete {
   }
 
   #[tracing::instrument(skip_all)]
-  async fn verify(&self, context: &Data<Self::DataType>) -> LemmyResult<()> {
+  async fn verify(&self, context: &Data<Self::DataType>) -> Result<(), LemmyError> {
     verify_delete_activity(self, self.summary.is_some(), context).await?;
     Ok(())
   }
 
   #[tracing::instrument(skip_all)]
-  async fn receive(self, context: &Data<LemmyContext>) -> LemmyResult<()> {
+  async fn receive(self, context: &Data<LemmyContext>) -> Result<(), LemmyError> {
     insert_received_activity(&self.id, context).await?;
     if let Some(reason) = self.summary {
       // We set reason to empty string if it doesn't exist, to distinguish between delete and
@@ -88,7 +88,7 @@ impl Delete {
     community: Option<&Community>,
     summary: Option<String>,
     context: &Data<LemmyContext>,
-  ) -> LemmyResult<Delete> {
+  ) -> Result<Delete, LemmyError> {
     let id = generate_activity_id(
       DeleteType::Delete,
       &context.settings().get_protocol_and_hostname(),
@@ -114,7 +114,7 @@ pub(in crate::activities) async fn receive_remove_action(
   object: &Url,
   reason: Option<String>,
   context: &Data<LemmyContext>,
-) -> LemmyResult<()> {
+) -> Result<(), LemmyError> {
   match DeletableObjects::read_from_db(object, context).await? {
     DeletableObjects::Community(community) => {
       if community.local {

@@ -15,14 +15,14 @@ use lemmy_db_schema::{
   traits::Crud,
 };
 use lemmy_db_views::structs::LocalUserView;
-use lemmy_utils::error::{LemmyErrorExt, LemmyErrorType, LemmyResult};
+use lemmy_utils::error::{LemmyError, LemmyErrorExt, LemmyErrorType};
 
 #[tracing::instrument(skip(context))]
 pub async fn remove_community(
   data: Json<RemoveCommunity>,
   context: Data<LemmyContext>,
   local_user_view: LocalUserView,
-) -> LemmyResult<Json<CommunityResponse>> {
+) -> Result<Json<CommunityResponse>, LemmyError> {
   check_community_mod_action(
     &local_user_view.person,
     data.community_id,

@@ -15,14 +15,14 @@ use lemmy_db_schema::{
   traits::Crud,
 };
 use lemmy_db_views::structs::{CommentView, LocalUserView};
-use lemmy_utils::error::LemmyResult;
+use lemmy_utils::error::LemmyError;
 
 #[tracing::instrument(skip(context))]
 pub async fn purge_comment(
   data: Json<PurgeComment>,
   context: Data<LemmyContext>,
   local_user_view: LocalUserView,
-) -> LemmyResult<Json<SuccessResponse>> {
+) -> Result<Json<SuccessResponse>, LemmyError> {
   // Only let admin purge an item
   is_admin(&local_user_view)?;
 

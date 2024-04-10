@@ -5,14 +5,14 @@ use lemmy_api_common::{
 };
 use lemmy_db_schema::source::images::LocalImage;
 use lemmy_db_views::structs::LocalUserView;
-use lemmy_utils::error::LemmyResult;
+use lemmy_utils::error::LemmyError;
 
 #[tracing::instrument(skip(context))]
 pub async fn list_media(
   data: Query<ListMedia>,
   context: Data<LemmyContext>,
   local_user_view: LocalUserView,
-) -> LemmyResult<Json<ListMediaResponse>> {
+) -> Result<Json<ListMediaResponse>, LemmyError> {
   let page = data.page;
   let limit = data.limit;
   let images = LocalImage::get_all_paged_by_local_user_id(

@@ -30,7 +30,7 @@ use lemmy_db_schema::{
 };
 use lemmy_db_views::structs::LocalUserView;
 use lemmy_utils::{
-  error::{LemmyErrorExt, LemmyErrorType, LemmyResult},
+  error::{LemmyError, LemmyErrorExt, LemmyErrorType},
   utils::{mention::scrape_text_for_mentions, validation::is_valid_body_field},
 };
 
@@ -41,7 +41,7 @@ pub async fn create_comment(
   data: Json<CreateComment>,
   context: Data<LemmyContext>,
   local_user_view: LocalUserView,
-) -> LemmyResult<Json<CommentResponse>> {
+) -> Result<Json<CommentResponse>, LemmyError> {
   let local_site = LocalSite::read(&mut context.pool()).await?;
 
   let slur_regex = local_site_to_slur_regex(&local_site);
@@ -207,7 +207,7 @@ pub async fn create_comment(
   ))
 }
 
-pub fn check_comment_depth(comment: &Comment) -> LemmyResult<()> {
+pub fn check_comment_depth(comment: &Comment) -> Result<(), LemmyError> {
   let path = &comment.path.0;
   let length = path.split('.').count();
   if length > MAX_COMMENT_DEPTH_LIMIT {

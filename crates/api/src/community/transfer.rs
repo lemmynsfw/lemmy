@@ -15,7 +15,7 @@ use lemmy_db_schema::{
 use lemmy_db_views::structs::LocalUserView;
 use lemmy_db_views_actor::structs::{CommunityModeratorView, CommunityView};
 use lemmy_utils::{
-  error::{LemmyErrorExt, LemmyErrorType, LemmyResult},
+  error::{LemmyError, LemmyErrorExt, LemmyErrorType},
   location_info,
 };
 
@@ -26,7 +26,7 @@ pub async fn transfer_community(
   data: Json<TransferCommunity>,
   context: Data<LemmyContext>,
   local_user_view: LocalUserView,
-) -> LemmyResult<Json<GetCommunityResponse>> {
+) -> Result<Json<GetCommunityResponse>, LemmyError> {
   let community_id = data.community_id;
   let mut community_mods =
     CommunityModeratorView::for_community(&mut context.pool(), community_id).await?;
