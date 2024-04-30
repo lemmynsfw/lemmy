@@ -220,7 +220,8 @@ fn queries<'a>() -> Queries<
       query = query.filter(
         comment::content
           .ilike(fuzzy_search(&search_term))
-          .and(not(comment::removed.or(comment::deleted))),
+          .and(comment::removed.eq(false))
+          .and(comment::deleted.eq(false)),
       );
     };
 

@@ -78,10 +78,7 @@ impl UrlVerifier for VerifyUrlData {
 /// - URL not being in the blocklist (if it is active)
 #[tracing::instrument(skip(local_site_data))]
 fn check_apub_id_valid(apub_id: &Url, local_site_data: &LocalSiteData) -> LemmyResult<()> {
-  let domain = apub_id
-    .domain()
-    .ok_or(LemmyErrorType::UrlWithoutDomain)?
-    .to_string();
+  let domain = apub_id.domain().expect("apud id has domain").to_string();
 
   if !local_site_data
     .local_site
@@ -161,10 +158,7 @@ pub(crate) async fn check_apub_id_valid_with_strictness(
   is_strict: bool,
   context: &LemmyContext,
 ) -> LemmyResult<()> {
-  let domain = apub_id
-    .domain()
-    .ok_or(LemmyErrorType::UrlWithoutDomain)?
-    .to_string();
+  let domain = apub_id.domain().expect("apud id has domain").to_string();
   let local_instance = context
     .settings()
     .get_hostname_without_port()
@@ -191,10 +185,7 @@ pub(crate) async fn check_apub_id_valid_with_strictness(
       .expect("local hostname is valid");
     allowed_and_local.push(local_instance);
 
-    let domain = apub_id
-      .domain()
-      .ok_or(LemmyErrorType::UrlWithoutDomain)?
-      .to_string();
+    let domain = apub_id.domain().expect("apud id has domain").to_string();
     if !allowed_and_local.contains(&domain) {
       Err(LemmyErrorType::FederationDisabledByStrictAllowList)?
     }

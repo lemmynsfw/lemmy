@@ -123,6 +123,13 @@ pub async fn create_post(
     }
   };
 
+  // if the community is NSFW flagged, then flag the post as NSFW no matter what the request data says
+  // not applicable to non-nsfw instances
+  let nsfw = if community.nsfw {
+    true
+  } else {
+    data.nsfw.unwrap_or(true)
+  };
   let post_form = PostInsertForm::builder()
     .name(data.name.trim().to_string())
     .url(url)
@@ -130,7 +137,7 @@ pub async fn create_post(
     .alt_text(data.alt_text.clone())
     .community_id(data.community_id)
     .creator_id(local_user_view.person.id)
-    .nsfw(data.nsfw)
+    .nsfw(Some(nsfw))
     .language_id(language_id)
     .build();
 

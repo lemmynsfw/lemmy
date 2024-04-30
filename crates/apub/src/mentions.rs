@@ -54,10 +54,7 @@ pub async fn collect_non_local_mentions(
     name: Some(format!(
       "@{}@{}",
       &parent_creator.name,
-      &parent_creator
-        .id()
-        .domain()
-        .ok_or(LemmyErrorType::UrlWithoutDomain)?
+      &parent_creator.id().domain().expect("has domain")
     )),
     kind: MentionType::Mention,
   };

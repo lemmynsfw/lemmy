@@ -45,7 +45,6 @@ use lemmy_utils::{
     markdown::markdown_to_html,
     slurs::{check_slurs, check_slurs_opt},
   },
-  LemmyErrorType,
 };
 use std::ops::Deref;
 use tracing::debug;
@@ -138,11 +137,7 @@ impl Object for ApubSite {
 
   #[tracing::instrument(skip_all)]
   async fn from_json(apub: Self::Kind, context: &Data<Self::DataType>) -> LemmyResult<Self> {
-    let domain = apub
-      .id
-      .inner()
-      .domain()
-      .ok_or(LemmyErrorType::UrlWithoutDomain)?;
+    let domain = apub.id.inner().domain().expect("group id has domain");
     let instance = DbInstance::read_or_create(&mut context.pool(), domain.to_string()).await?;
 
     let local_site = LocalSite::read(&mut context.pool()).await.ok();
@@ -215,9 +210,7 @@ pub(in crate::objects) async fn fetch_instance_actor_for_object<T: Into<Url> + C
     Err(e) => {
       // Failed to fetch instance actor, its probably not a lemmy instance
       debug!("Failed to dereference site for {}: {}", &instance_id, e);
-      let domain = instance_id
-        .domain()
-        .ok_or(LemmyErrorType::UrlWithoutDomain)?;
+      let domain = instance_id.domain().expect("has domain");
       Ok(
         DbInstance::read_or_create(&mut context.pool(), domain.to_string())
           .await?
