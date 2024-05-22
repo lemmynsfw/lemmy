@@ -45,6 +45,7 @@ let postOnAlphaRes: PostResponse;
 
 beforeAll(async () => {
   await setupLogins();
+  await unfollows();
   await Promise.all([followBeta(alpha), followBeta(gamma)]);
   betaCommunity = (await resolveBetaCommunity(alpha)).community;
   if (betaCommunity) {

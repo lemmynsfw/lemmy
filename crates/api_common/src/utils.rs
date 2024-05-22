@@ -965,10 +965,13 @@ async fn proxy_image_link_internal(
   if link.domain() == Some(&context.settings().hostname) {
     Ok(link.into())
   } else if image_mode == PictrsImageMode::ProxyAllImages {
-    let proxied = build_proxied_image_url(&link, &context.settings().get_protocol_and_hostname())?;
-
+    let proxied = format!(
+      "{}/api/v3/image_proxy?url={}",
+      context.settings().get_protocol_and_hostname(),
+      encode(link.as_str())
+    );
     RemoteImage::create(&mut context.pool(), vec![link]).await?;
-    Ok(proxied.into())
+    Ok(Url::parse(&proxied)?.into())
   } else {
     Ok(link.into())
   }
@@ -1020,17 +1023,6 @@ pub async fn proxy_image_link_opt_apub(
   } else {
     Ok(None)
   }
-}
-
-fn build_proxied_image_url(
-  link: &Url,
-  protocol_and_hostname: &str,
-) -> Result<Url, url::ParseError> {
-  Url::parse(&format!(
-    "{}/api/v3/image_proxy?url={}",
-    protocol_and_hostname,
-    encode(link.as_str())
-  ))
 }
 
 #[cfg(test)]

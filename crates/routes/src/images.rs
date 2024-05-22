@@ -1,16 +1,18 @@
 use actix_web::{
   body::BodyStream,
+  error,
   http::{
     header::{HeaderName, ACCEPT_ENCODING, HOST},
     StatusCode,
   },
   web,
   web::Query,
+  Error,
   HttpRequest,
   HttpResponse,
 };
 use futures::stream::{Stream, StreamExt};
-use lemmy_api_common::{context::LemmyContext, request::PictrsResponse};
+use lemmy_api_common::context::LemmyContext;
 use lemmy_db_schema::source::{
   images::{LocalImage, LocalImageForm, RemoteImage},
   local_site::LocalSite,
@@ -19,7 +21,7 @@ use lemmy_db_views::structs::LocalUserView;
 use lemmy_utils::{error::LemmyResult, rate_limit::RateLimitCell, REQWEST_TIMEOUT};
 use reqwest::Body;
 use reqwest_middleware::{ClientWithMiddleware, RequestBuilder};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use url::Url;
 use urlencoding::decode;
@@ -41,8 +43,20 @@ pub fn config(
     .service(web::resource("/pictrs/image/delete/{token}/{filename}").route(web::get().to(delete)));
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct Image {
+  file: String,
+  delete_token: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Images {
+  msg: String,
+  files: Option<Vec<Image>>,
+}
+
 #[derive(Deserialize)]
-struct PictrsGetParams {
+struct PictrsParams {
   format: Option<String>,
   thumbnail: Option<i32>,
 }
@@ -78,7 +92,7 @@ async fn upload(
   local_user_view: LocalUserView,
   client: web::Data<ClientWithMiddleware>,
   context: web::Data<LemmyContext>,
-) -> LemmyResult<HttpResponse> {
+) -> Result<HttpResponse, Error> {
   // TODO: check rate limit here
   let pictrs_config = context.settings().pictrs_config()?;
   let image_url = format!("{}image", pictrs_config.url);
@@ -92,18 +106,21 @@ async fn upload(
     .timeout(Duration::from_secs(pictrs_config.upload_timeout))
     .body(Body::wrap_stream(make_send(body)))
     .send()
-    .await?;
+    .await
+    .map_err(error::ErrorBadRequest)?;
 
   let status = res.status();
-  let images = res.json::<PictrsResponse>().await?;
+  let images = res.json::<Images>().await.map_err(error::ErrorBadRequest)?;
   if let Some(images) = &images.files {
-    for image in images {
+    for uploaded_image in images {
       let form = LocalImageForm {
         local_user_id: Some(local_user_view.local_user.id),
-        pictrs_alias: image.file.to_string(),
-        pictrs_delete_token: image.delete_token.to_string(),
+        pictrs_alias: uploaded_image.file.to_string(),
+        pictrs_delete_token: uploaded_image.delete_token.to_string(),
       };
-      LocalImage::create(&mut context.pool(), &form).await?;
+      LocalImage::create(&mut context.pool(), &form)
+        .await
+        .map_err(error::ErrorBadRequest)?;
     }
   }
 
@@ -112,14 +129,16 @@ async fn upload(
 
 async fn full_res(
   filename: web::Path<String>,
-  web::Query(params): web::Query<PictrsGetParams>,
+  web::Query(params): web::Query<PictrsParams>,
   req: HttpRequest,
   client: web::Data<ClientWithMiddleware>,
   context: web::Data<LemmyContext>,
   local_user_view: Option<LocalUserView>,
-) -> LemmyResult<HttpResponse> {
+) -> Result<HttpResponse, Error> {
   // block access to images if instance is private and unauthorized, public
-  let local_site = LocalSite::read(&mut context.pool()).await?;
+  let local_site = LocalSite::read(&mut context.pool())
+    .await
+    .map_err(error::ErrorBadRequest)?;
   if local_site.private_instance && local_user_view.is_none() {
     return Ok(HttpResponse::Unauthorized().finish());
   }
@@ -150,7 +169,7 @@ async fn image(
   url: String,
   req: HttpRequest,
   client: &ClientWithMiddleware,
-) -> LemmyResult<HttpResponse> {
+) -> Result<HttpResponse, Error> {
   let mut client_req = adapt_request(&req, client, url);
 
   if let Some(addr) = req.head().peer_addr {
@@ -161,7 +180,7 @@ async fn image(
     client_req = client_req.header("X-Forwarded-For", addr.to_string());
   }
 
-  let res = client_req.send().await?;
+  let res = client_req.send().await.map_err(error::ErrorBadRequest)?;
 
   if res.status() == StatusCode::NOT_FOUND {
     return Ok(HttpResponse::NotFound().finish());
@@ -183,7 +202,7 @@ async fn delete(
   context: web::Data<LemmyContext>,
   // require login
   _local_user_view: LocalUserView,
-) -> LemmyResult<HttpResponse> {
+) -> Result<HttpResponse, Error> {
   let (token, file) = components.into_inner();
 
   let pictrs_config = context.settings().pictrs_config()?;
@@ -195,9 +214,11 @@ async fn delete(
     client_req = client_req.header("X-Forwarded-For", addr.to_string());
   }
 
-  let res = client_req.send().await?;
+  let res = client_req.send().await.map_err(error::ErrorBadRequest)?;
 
-  LocalImage::delete_by_alias(&mut context.pool(), &file).await?;
+  LocalImage::delete_by_alias(&mut context.pool(), &file)
+    .await
+    .map_err(error::ErrorBadRequest)?;
 
   Ok(HttpResponse::build(res.status()).body(BodyStream::new(res.bytes_stream())))
 }
@@ -209,8 +230,6 @@ pub struct ImageProxyParams {
 
 pub async fn image_proxy(
   Query(params): Query<ImageProxyParams>,
-  req: HttpRequest,
-  client: web::Data<ClientWithMiddleware>,
   context: web::Data<LemmyContext>,
 ) -> LemmyResult<HttpResponse> {
   let url = Url::parse(&decode(&params.url)?)?;
@@ -221,8 +240,9 @@ pub async fn image_proxy(
 
   let pictrs_config = context.settings().pictrs_config()?;
   let url = format!("{}image/original?proxy={}", pictrs_config.url, &params.url);
+  let image_response = context.client().get(url).send().await?;
 
-  image(url, req, &client).await
+  Ok(HttpResponse::Ok().streaming(image_response.bytes_stream()))
 }
 
 fn make_send<S>(mut stream: S) -> impl Stream<Item = S::Item> + Send + Unpin + 'static

@@ -48,6 +48,7 @@ beforeAll(async () => {
   await setupLogins();
   betaCommunity = (await resolveBetaCommunity(alpha)).community;
   expect(betaCommunity).toBeDefined();
+  await unfollows();
 });
 
 afterAll(unfollows);
@@ -82,7 +83,10 @@ async function assertPostFederation(postOne: PostView, postTwo: PostView) {
 
 test("Create a post", async () => {
   // Setup some allowlists and blocklists
-  const editSiteForm: EditSite = {};
+  let editSiteForm: EditSite = {
+    allowed_instances: ["lemmy-beta"],
+  };
+  await delta.editSite(editSiteForm);
 
   editSiteForm.allowed_instances = [];
   editSiteForm.blocked_instances = ["lemmy-alpha"];
@@ -745,7 +749,7 @@ test("Block post that contains banned URL", async () => {
 
   await epsilon.editSite(editSiteForm);
 
-  await delay();
+  await delay(500);
 
   if (!betaCommunity) {
     throw "Missing beta community";
