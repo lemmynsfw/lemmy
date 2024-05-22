@@ -437,6 +437,7 @@ impl<'a> CommentQuery<'a> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 #[allow(clippy::indexing_slicing)]
 mod tests {
 
@@ -497,28 +498,32 @@ mod tests {
     inserted_community: Community,
   }
 
-  async fn init_data(pool: &mut DbPool<'_>) -> LemmyResult<Data> {
-    let inserted_instance = Instance::read_or_create(pool, "my_domain.tld".to_string()).await?;
+  async fn init_data(pool: &mut DbPool<'_>) -> Data {
+    let inserted_instance = Instance::read_or_create(pool, "my_domain.tld".to_string())
+      .await
+      .unwrap();
 
     let timmy_person_form = PersonInsertForm::builder()
       .name("timmy".into())
       .public_key("pubkey".to_string())
       .instance_id(inserted_instance.id)
       .build();
-    let inserted_timmy_person = Person::create(pool, &timmy_person_form).await?;
+    let inserted_timmy_person = Person::create(pool, &timmy_person_form).await.unwrap();
     let timmy_local_user_form = LocalUserInsertForm::builder()
       .person_id(inserted_timmy_person.id)
       .admin(Some(true))
       .password_encrypted(String::new())
       .build();
-    let inserted_timmy_local_user = LocalUser::create(pool, &timmy_local_user_form, vec![]).await?;
+    let inserted_timmy_local_user = LocalUser::create(pool, &timmy_local_user_form, vec![])
+      .await
+      .unwrap();
 
     let sara_person_form = PersonInsertForm::builder()
       .name("sara".into())
       .public_key("pubkey".to_string())
       .instance_id(inserted_instance.id)
       .build();
-    let inserted_sara_person = Person::create(pool, &sara_person_form).await?;
+    let inserted_sara_person = Person::create(pool, &sara_person_form).await.unwrap();
 
     let new_community = CommunityInsertForm::builder()
       .name("test community 5".to_string())
@@ -527,7 +532,7 @@ mod tests {
       .instance_id(inserted_instance.id)
       .build();
 
-    let inserted_community = Community::create(pool, &new_community).await?;
+    let inserted_community = Community::create(pool, &new_community).await.unwrap();
 
     let new_post = PostInsertForm::builder()
       .name("A test post 2".into())
@@ -535,8 +540,8 @@ mod tests {
       .community_id(inserted_community.id)
       .build();
 
-    let inserted_post = Post::create(pool, &new_post).await?;
-    let english_id = Language::read_id_from_code(pool, Some("en")).await?;
+    let inserted_post = Post::create(pool, &new_post).await.unwrap();
+    let english_id = Language::read_id_from_code(pool, Some("en")).await.unwrap();
 
     // Create a comment tree with this hierarchy
     //       0
@@ -553,7 +558,7 @@ mod tests {
       .language_id(english_id)
       .build();
 
-    let inserted_comment_0 = Comment::create(pool, &comment_form_0, None).await?;
+    let inserted_comment_0 = Comment::create(pool, &comment_form_0, None).await.unwrap();
 
     let comment_form_1 = CommentInsertForm::builder()
       .content("Comment 1, A test blocked comment".into())
@@ -562,10 +567,11 @@ mod tests {
       .language_id(english_id)
       .build();
 
-    let inserted_comment_1 =
-      Comment::create(pool, &comment_form_1, Some(&inserted_comment_0.path)).await?;
+    let inserted_comment_1 = Comment::create(pool, &comment_form_1, Some(&inserted_comment_0.path))
+      .await
+      .unwrap();
 
-    let finnish_id = Language::read_id_from_code(pool, Some("fi")).await?;
+    let finnish_id = Language::read_id_from_code(pool, Some("fi")).await.unwrap();
     let comment_form_2 = CommentInsertForm::builder()
       .content("Comment 2".into())
       .creator_id(inserted_timmy_person.id)
@@ -573,8 +579,9 @@ mod tests {
       .language_id(finnish_id)
       .build();
 
-    let inserted_comment_2 =
-      Comment::create(pool, &comment_form_2, Some(&inserted_comment_0.path)).await?;
+    let inserted_comment_2 = Comment::create(pool, &comment_form_2, Some(&inserted_comment_0.path))
+      .await
+      .unwrap();
 
     let comment_form_3 = CommentInsertForm::builder()
       .content("Comment 3".into())
@@ -584,11 +591,14 @@ mod tests {
       .build();
 
     let _inserted_comment_3 =
-      Comment::create(pool, &comment_form_3, Some(&inserted_comment_1.path)).await?;
+      Comment::create(pool, &comment_form_3, Some(&inserted_comment_1.path))
+        .await
+        .unwrap();
 
     let polish_id = Language::read_id_from_code(pool, Some("pl"))
-      .await?
-      .ok_or(LemmyErrorType::LanguageNotAllowed)?;
+      .await
+      .unwrap()
+      .unwrap();
     let comment_form_4 = CommentInsertForm::builder()
       .content("Comment 4".into())
       .creator_id(inserted_timmy_person.id)
@@ -596,8 +606,9 @@ mod tests {
       .language_id(Some(polish_id))
       .build();
 
-    let inserted_comment_4 =
-      Comment::create(pool, &comment_form_4, Some(&inserted_comment_1.path)).await?;
+    let inserted_comment_4 = Comment::create(pool, &comment_form_4, Some(&inserted_comment_1.path))
+      .await
+      .unwrap();
 
     let comment_form_5 = CommentInsertForm::builder()
       .content("Comment 5".into())
@@ -606,14 +617,18 @@ mod tests {
       .build();
 
     let _inserted_comment_5 =
-      Comment::create(pool, &comment_form_5, Some(&inserted_comment_4.path)).await?;
+      Comment::create(pool, &comment_form_5, Some(&inserted_comment_4.path))
+        .await
+        .unwrap();
 
     let timmy_blocks_sara_form = PersonBlockForm {
       person_id: inserted_timmy_person.id,
       target_id: inserted_sara_person.id,
     };
 
-    let inserted_block = PersonBlock::block(pool, &timmy_blocks_sara_form).await?;
+    let inserted_block = PersonBlock::block(pool, &timmy_blocks_sara_form)
+      .await
+      .unwrap();
 
     let expected_block = PersonBlock {
       person_id: inserted_timmy_person.id,
@@ -629,7 +644,7 @@ mod tests {
       score: 1,
     };
 
-    let _inserted_comment_like = CommentLike::like(pool, &comment_like_form).await?;
+    let _inserted_comment_like = CommentLike::like(pool, &comment_like_form).await.unwrap();
 
     let timmy_local_user_view = LocalUserView {
       local_user: inserted_timmy_local_user.clone(),
@@ -637,7 +652,7 @@ mod tests {
       person: inserted_timmy_person.clone(),
       counts: Default::default(),
     };
-    Ok(Data {
+    Data {
       inserted_instance,
       inserted_comment_0,
       inserted_comment_1,
@@ -646,7 +661,7 @@ mod tests {
       timmy_local_user_view,
       inserted_sara_person,
       inserted_community,
-    })
+    }
   }
 
   #[tokio::test]
@@ -654,7 +669,7 @@ mod tests {
   async fn test_crud() -> LemmyResult<()> {
     let pool = &build_db_pool_for_tests().await;
     let pool = &mut pool.into();
-    let data = init_data(pool).await?;
+    let data = init_data(pool).await;
 
     let expected_comment_view_no_person = expected_comment_view(&data, pool).await?;
 
@@ -699,7 +714,7 @@ mod tests {
       Some(data.timmy_local_user_view.person.id),
     )
     .await?
-    .ok_or(LemmyErrorType::CouldntFindComment)?;
+    .unwrap();
 
     // Make sure block set the creator blocked
     assert!(read_comment_from_blocked_person.creator_blocked);
@@ -712,7 +727,7 @@ mod tests {
   async fn test_liked_only() -> LemmyResult<()> {
     let pool = &build_db_pool_for_tests().await;
     let pool = &mut pool.into();
-    let data = init_data(pool).await?;
+    let data = init_data(pool).await;
 
     // Unblock sara first
     let timmy_unblocks_sara_form = PersonBlockForm {
@@ -728,7 +743,7 @@ mod tests {
       person_id: data.timmy_local_user_view.person.id,
       score: 1,
     };
-    CommentLike::like(pool, &comment_like_form).await?;
+    CommentLike::like(pool, &comment_like_form).await.unwrap();
 
     let read_liked_comment_views = CommentQuery {
       local_user: (Some(&data.timmy_local_user_view)),
@@ -764,7 +779,7 @@ mod tests {
   async fn test_comment_tree() -> LemmyResult<()> {
     let pool = &build_db_pool_for_tests().await;
     let pool = &mut pool.into();
-    let data = init_data(pool).await?;
+    let data = init_data(pool).await;
 
     let top_path = data.inserted_comment_0.path.clone();
     let read_comment_views_top_path = CommentQuery {
@@ -837,7 +852,7 @@ mod tests {
   async fn test_languages() -> LemmyResult<()> {
     let pool = &build_db_pool_for_tests().await;
     let pool = &mut pool.into();
-    let data = init_data(pool).await?;
+    let data = init_data(pool).await;
 
     // by default, user has all languages enabled and should see all comments
     // (except from blocked user)
@@ -901,7 +916,7 @@ mod tests {
   async fn test_distinguished_first() -> LemmyResult<()> {
     let pool = &build_db_pool_for_tests().await;
     let pool = &mut pool.into();
-    let data = init_data(pool).await?;
+    let data = init_data(pool).await;
 
     let form = CommentUpdateForm {
       distinguished: Some(true),
@@ -926,7 +941,7 @@ mod tests {
   async fn test_creator_is_moderator() -> LemmyResult<()> {
     let pool = &build_db_pool_for_tests().await;
     let pool = &mut pool.into();
-    let data = init_data(pool).await?;
+    let data = init_data(pool).await;
 
     // Make one of the inserted persons a moderator
     let person_id = data.inserted_sara_person.id;
@@ -957,7 +972,7 @@ mod tests {
   async fn test_creator_is_admin() -> LemmyResult<()> {
     let pool = &build_db_pool_for_tests().await;
     let pool = &mut pool.into();
-    let data = init_data(pool).await?;
+    let data = init_data(pool).await;
 
     let comments = CommentQuery {
       sort: (Some(CommentSortType::Old)),
@@ -982,7 +997,7 @@ mod tests {
   async fn test_saved_order() -> LemmyResult<()> {
     let pool = &build_db_pool_for_tests().await;
     let pool = &mut pool.into();
-    let data = init_data(pool).await?;
+    let data = init_data(pool).await;
 
     // Save two comments
     let save_comment_0_form = CommentSavedForm {
@@ -1158,7 +1173,7 @@ mod tests {
   async fn local_only_instance() -> LemmyResult<()> {
     let pool = &build_db_pool_for_tests().await;
     let pool = &mut pool.into();
-    let data = init_data(pool).await?;
+    let data = init_data(pool).await;
 
     Community::update(
       pool,
@@ -1204,7 +1219,7 @@ mod tests {
   async fn comment_listing_local_user_banned_from_community() -> LemmyResult<()> {
     let pool = &build_db_pool_for_tests().await;
     let pool = &mut pool.into();
-    let data = init_data(pool).await?;
+    let data = init_data(pool).await;
 
     // Test that comment view shows if local user is blocked from community
     let banned_from_comm_person = PersonInsertForm::test_form(data.inserted_instance.id, "jill");
@@ -1247,7 +1262,7 @@ mod tests {
   async fn comment_listing_local_user_not_banned_from_community() -> LemmyResult<()> {
     let pool = &build_db_pool_for_tests().await;
     let pool = &mut pool.into();
-    let data = init_data(pool).await?;
+    let data = init_data(pool).await;
 
     let comment_view = CommentView::read(
       pool,
