@@ -94,15 +94,11 @@ impl Instance {
       .await
   }
 
-  /// Only for use in tests
+  #[cfg(test)]
   pub async fn delete_all(pool: &mut DbPool<'_>) -> Result<usize, Error> {
     let conn = &mut get_conn(pool).await?;
-    diesel::delete(federation_queue_state::table)
-      .execute(conn)
-      .await?;
     diesel::delete(instance::table).execute(conn).await
   }
-
   pub async fn allowlist(pool: &mut DbPool<'_>) -> Result<Vec<Self>, Error> {
     let conn = &mut get_conn(pool).await?;
     instance::table
