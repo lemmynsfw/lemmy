@@ -60,6 +60,7 @@ jobs:
               continue
             fi
             git checkout -b $tag $tag
+            git submodule update --init
             git apply --verbose --whitespace=fix --3way /tmp/diff.patch || true
             git --no-pager diff --name-only --diff-filter=U --relative || true
             git checkout --theirs .
