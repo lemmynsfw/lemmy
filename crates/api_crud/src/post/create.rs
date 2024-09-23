@@ -92,9 +92,7 @@ pub async fn create_post(
   .await?;
 
   let community_id = data.community_id;
-  let community = Community::read(&mut context.pool(), community_id)
-    .await?
-    .ok_or(LemmyErrorType::CouldntFindCommunity)?;
+  let community = Community::read(&mut context.pool(), community_id).await?;
   if community.posting_restricted_to_mods {
     let community_id = data.community_id;
     let is_mod = CommunityModeratorView::is_community_moderator(
@@ -130,21 +128,23 @@ pub async fn create_post(
     }
   };
 
-  let mut post_form = PostInsertForm::new(
-    data.name.trim().to_string(),
-    local_user_view.person.id,
-    data.community_id,
-  );
   let nsfw = if community.nsfw {
     true
   } else {
     data.nsfw.unwrap_or(true)
   };
-  post_form.url = url.map(Into::into);
-  post_form.body = body;
-  post_form.alt_text = data.alt_text.clone();
-  post_form.nsfw = Some(nsfw);
-  post_form.language_id = language_id;
+  let post_form = PostInsertForm {
+    url: url.map(Into::into),
+    body,
+    alt_text: data.alt_text.clone(),
+    nsfw: Some(nsfw),
+    language_id,
+    ..PostInsertForm::new(
+      data.name.trim().to_string(),
+      local_user_view.person.id,
+      data.community_id,
+    )
+  };
 
   let inserted_post = Post::create(&mut context.pool(), &post_form)
     .await
