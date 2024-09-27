@@ -1,3 +1,4 @@
+use super::convert_published_time;
 use activitypub_federation::config::Data;
 use actix_web::web::Json;
 use lemmy_api_common::{
@@ -95,15 +96,12 @@ pub async fn create_post(
   let community = Community::read(&mut context.pool(), community_id).await?;
   if community.posting_restricted_to_mods {
     let community_id = data.community_id;
-    let is_mod = CommunityModeratorView::is_community_moderator(
+    CommunityModeratorView::check_is_community_moderator(
       &mut context.pool(),
       community_id,
       local_user_view.local_user.person_id,
     )
     .await?;
-    if !is_mod {
-      Err(LemmyErrorType::OnlyModsCanPostInCommunity)?
-    }
   }
 
   // Only need to check if language is allowed in case user set it explicitly. When using default
@@ -133,12 +131,15 @@ pub async fn create_post(
   } else {
     data.nsfw.unwrap_or(true)
   };
+  let scheduled_publish_time =
+    convert_published_time(data.scheduled_publish_time, &local_user_view, &context).await?;
   let post_form = PostInsertForm {
     url: url.map(Into::into),
     body,
     alt_text: data.alt_text.clone(),
     nsfw: Some(nsfw),
     language_id,
+    scheduled_publish_time,
     ..PostInsertForm::new(
       data.name.trim().to_string(),
       local_user_view.person.id,
@@ -150,10 +151,16 @@ pub async fn create_post(
     .await
     .with_lemmy_type(LemmyErrorType::CouldntCreatePost)?;
 
+  let federate_post = if scheduled_publish_time.is_none() {
+    send_webmention(inserted_post.clone(), community);
+    |post| Some(SendActivityData::CreatePost(post))
+  } else {
+    |_| None
+  };
   generate_post_link_metadata(
     inserted_post.clone(),
     custom_thumbnail.map(Into::into),
-    |post| Some(SendActivityData::CreatePost(post)),
+    federate_post,
     context.reset_request_count(),
   )
   .await?;
@@ -173,11 +180,14 @@ pub async fn create_post(
 
   mark_post_as_read(person_id, post_id, &mut context.pool()).await?;
 
-  if let Some(url) = inserted_post.url.clone() {
+  build_post_response(&context, community_id, local_user_view, post_id).await
+}
+
+pub fn send_webmention(post: Post, community: Community) {
+  if let Some(url) = post.url.clone() {
     if community.visibility == CommunityVisibility::Public {
       spawn_try_task(async move {
-        let mut webmention =
-          Webmention::new::<Url>(inserted_post.ap_id.clone().into(), url.clone().into())?;
+        let mut webmention = Webmention::new::<Url>(post.ap_id.clone().into(), url.clone().into())?;
         webmention.set_checked(true);
         match webmention
           .send()
@@ -191,6 +201,4 @@ pub async fn create_post(
       });
     }
   };
-
-  build_post_response(&context, community_id, local_user_view, post_id).await
 }
