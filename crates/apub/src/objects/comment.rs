@@ -1,6 +1,7 @@
 use crate::{
   activities::{verify_is_public, verify_person_in_community},
   check_apub_id_valid_with_strictness,
+  fetcher::markdown_links::markdown_rewrite_remote_links,
   mentions::collect_non_local_mentions,
   objects::{read_from_string_or_source, verify_is_remote_object},
   protocol::{
@@ -104,7 +105,7 @@ impl Object for ApubComment {
     } else {
       post.ap_id.into()
     };
-    let language = LanguageTag::new_single(self.language_id, &mut context.pool()).await?;
+    let language = Some(LanguageTag::new_single(self.language_id, &mut context.pool()).await?);
     let maa = collect_non_local_mentions(&self, community.actor_id.clone().into(), context).await?;
 
     let note = Note {
@@ -181,8 +182,11 @@ impl Object for ApubComment {
     let slur_regex = &local_site_opt_to_slur_regex(&local_site);
     let url_blocklist = get_url_blocklist(context).await?;
     let content = process_markdown(&content, slur_regex, &url_blocklist, context).await?;
-    let language_id =
-      LanguageTag::to_language_id_single(note.language, &mut context.pool()).await?;
+    let content = markdown_rewrite_remote_links(content, context).await;
+    let language_id = Some(
+      LanguageTag::to_language_id_single(note.language.unwrap_or_default(), &mut context.pool())
+        .await?,
+    );
 
     let form = CommentInsertForm {
       creator_id: creator.id,
@@ -296,7 +300,7 @@ pub(crate) mod tests {
     let comment = ApubComment::from_json(json, &context).await?;
 
     assert_eq!(comment.ap_id, pleroma_url.into());
-    assert_eq!(comment.content.len(), 64);
+    assert_eq!(comment.content.len(), 10);
     assert!(!comment.local);
     assert_eq!(context.request_count(), 1);
 
