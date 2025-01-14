@@ -86,6 +86,9 @@ pub async fn create_post(
   let community = Community::read(&mut context.pool(), data.community_id).await?;
   check_community_user_action(&local_user_view.person, &community, &mut context.pool()).await?;
 
+  // If its an NSFW community, then use that as a default
+  let nsfw = data.nsfw.or(Some(community.nsfw));
+
   if community.posting_restricted_to_mods {
     let community_id = data.community_id;
     CommunityModeratorView::check_is_community_moderator(
@@ -95,12 +98,6 @@ pub async fn create_post(
     )
     .await?;
   }
-
-  let nsfw = if community.nsfw {
-    true
-  } else {
-    data.nsfw.unwrap_or(true)
-  };
 
   let language_id = validate_post_language(
     &mut context.pool(),
@@ -116,7 +113,7 @@ pub async fn create_post(
     url,
     body,
     alt_text: data.alt_text.clone(),
-    nsfw: Some(nsfw),
+    nsfw,
     language_id: Some(language_id),
     scheduled_publish_time,
     ..PostInsertForm::new(
