@@ -1,38 +1,16 @@
 {
   # settings related to the postgresql database
   database: {
-    # Configure the database by specifying a URI
-    # 
-    # This is the preferred method to specify database connection details since
-    # it is the most flexible.
-    # Connection URI pointing to a postgres instance
+    # Configure the database by specifying URI pointing to a postgres instance
     # 
     # This example uses peer authentication to obviate the need for creating,
     # configuring, and managing passwords.
-    # 
+    #
     # For an explanation of how to use connection URIs, see [here][0] in
     # PostgreSQL's documentation.
-    # 
+    #
     # [0]: https://www.postgresql.org/docs/current/libpq-connect.html#id-1.7.3.8.3.6
-    uri: "postgresql:///lemmy?user=lemmy&host=/var/run/postgresql"
-
-    # or
-
-    # Configure the database by specifying parts of a URI
-    # 
-    # Note that specifying the `uri` field should be preferred since it provides
-    # greater control over how the connection is made. This merely exists for
-    # backwards-compatibility.
-    # Username to connect to postgres
-    user: "string"
-    # Password to connect to postgres
-    password: "string"
-    # Host where postgres is running
-    host: "string"
-    # Port where postgres can be accessed
-    port: 123
-    # Name of the postgres database for lemmy
-    database: "string"
+    connection: "postgres://lemmy:password@localhost:5432/lemmy"
     # Maximum number of active sql connections
     pool_size: 30
   }
@@ -42,11 +20,6 @@
     url: "http://localhost:8080/"
     # Set a custom pictrs API key. ( Required for deleting images )
     api_key: "string"
-    # Backwards compatibility with 0.18.1. False is equivalent to `image_mode: None`, true is
-    # equivalent to `image_mode: StoreLinkPreviews`.
-    # 
-    # To be removed in 0.20
-    cache_external_link_previews: true
     # Specifies how to handle remote images, so that users don't have to connect directly to remote
     # servers.
     image_mode: 
@@ -60,13 +33,13 @@
       # ensures that they can be reliably retrieved and can be resized using pict-rs APIs. However
       # it also increases storage usage.
       # 
-      # This is the default behaviour, and also matches Lemmy 0.18.
+      # This behaviour matches Lemmy 0.18.
       "StoreLinkPreviews"
 
       # or
 
       # If enabled, all images from remote domains are rewritten to pass through
-      # `/api/v3/image_proxy`, including embedded images in markdown. Images are stored temporarily
+      # `/api/v4/image/proxy`, including embedded images in markdown. Images are stored temporarily
       # in pict-rs for caching. This improves privacy as users don't expose their IP to untrusted
       # servers, and decreases load on other servers. However it increases bandwidth use for the
       # local server.
@@ -86,19 +59,25 @@
     upload_timeout: 30
     # Resize post thumbnails to this maximum width/height.
     max_thumbnail_size: 512
+    # Maximum size for user avatar, community icon and site icon. Larger images are downscaled.
+    max_avatar_size: 512
+    # Maximum size for user, community and site banner. Larger images are downscaled.
+    max_banner_size: 1024
+    # Maximum size for other uploads (e.g. post images or markdown embed images). Larger
+    # images are downscaled.
+    max_upload_size: 1024
+    # Whether users can upload videos as post image or markdown embed.
+    allow_video_uploads: true
+    # Prevent users from uploading images for posts or embedding in markdown. Avatars, icons and
+    # banners can still be uploaded.
+    image_upload_disabled: false
   }
   # Email sending configuration. All options except login/password are mandatory
   email: {
-    # Hostname and port of the smtp server
-    smtp_server: "localhost:25"
-    # Login name for smtp server
-    smtp_login: "string"
-    # Password to login to the smtp server
-    smtp_password: "string"
+    # https://docs.rs/lettre/0.11.14/lettre/transport/smtp/struct.AsyncSmtpTransport.html#method.from_url
+    connection: "smtps://user:pass@hostname:port"
     # Address to send emails from, eg "noreply@your-instance.com"
     smtp_from_address: "noreply@example.com"
-    # Whether or not smtp connections should use tls. Can be none, tls, or starttls
-    tls_type: "none"
   }
   # Parameters for automatic configuration of new instance (only used at first start)
   setup: {
@@ -129,7 +108,13 @@
     bind: "127.0.0.1"
     port: 10002
   }
-  # Sets a response Access-Control-Allow-Origin CORS header
+  # Sets a response Access-Control-Allow-Origin CORS header. Can also be set via environment:
+  # `LEMMY_CORS_ORIGIN=example.org,site.com`
   # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin
-  cors_origin: "lemmy.tld"
+  cors_origin: [
+    "lemmy.tld"
+    /* ... */
+  ]
+  # Print logs in JSON format. You can also disable ANSI colors in logs with env var `NO_COLOR`.
+  json_logging: false
 }
