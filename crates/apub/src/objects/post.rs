@@ -268,7 +268,7 @@ impl Object for ApubPost {
       published: page.published,
       updated: page.updated,
       deleted: Some(false),
-      nsfw: Some(page.sensitive),
+      nsfw: page.sensitive,
       ap_id: Some(page.id.clone().into()),
       local: Some(false),
       language_id,
