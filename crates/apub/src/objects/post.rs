@@ -146,7 +146,7 @@ impl Object for ApubPost {
       source: self.body.clone().map(Source::new),
       attachment,
       image: self.thumbnail_url.clone().map(ImageObject::new),
-      sensitive: Some(self.nsfw),
+      sensitive: Some(true),
       language,
       published: Some(self.published),
       updated: self.updated,
@@ -257,7 +257,7 @@ impl Object for ApubPost {
       .published(page.published.map(Into::into))
       .updated(page.updated.map(Into::into))
       .deleted(Some(false))
-      .nsfw(page.sensitive)
+      .nsfw(Some(true))
       .ap_id(Some(page.id.clone().into()))
       .local(Some(false))
       .language_id(language_id)
