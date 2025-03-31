@@ -162,15 +162,7 @@ impl Post {
     }
 
     if let Some(for_instance_id) = for_instance_id {
-      // Diesel can't update from join unfortunately, so you'll need to loop over these
-      let post_ids = post::table
-        .inner_join(community::table)
-        .filter(post::creator_id.eq(for_creator_id))
-        .filter(community::instance_id.eq(for_instance_id))
-        .select(post::id)
-        .load::<PostId>(conn)
-        .await?;
-      update = update.filter(post::id.eq_any(post_ids));
+      update = update.filter(post::instance_id.eq(for_instance_id));
     }
 
     update
