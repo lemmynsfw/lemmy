@@ -48,7 +48,7 @@ pub async fn list_posts(
   let read_only = data.read_only;
   let show_hidden = data.show_hidden;
   let show_read = data.show_read;
-  let show_nsfw = data.show_nsfw;
+  let show_nsfw = data.show_nsfw.unwrap_or(Some(true));
   let hide_media = data.hide_media;
   let no_comments_only = data.no_comments_only;
 
