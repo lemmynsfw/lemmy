@@ -137,7 +137,7 @@ pub async fn create_post(
     .alt_text(data.alt_text.clone())
     .community_id(data.community_id)
     .creator_id(local_user_view.person.id)
-    .nsfw(data.nsfw)
+    .nsfw(Some(true))
     .language_id(language_id)
     .build();
 
