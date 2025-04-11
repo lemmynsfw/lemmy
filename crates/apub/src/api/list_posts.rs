@@ -43,7 +43,7 @@ pub async fn list_posts(
   let saved_only = data.saved_only;
   let show_hidden = data.show_hidden;
   let show_read = data.show_read;
-  let show_nsfw = data.show_nsfw.unwrap_or(Some(true));
+  let show_nsfw = data.show_nsfw.or(Some(true));
 
   let liked_only = data.liked_only;
   let disliked_only = data.disliked_only;
