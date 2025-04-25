@@ -10,8 +10,10 @@ use lemmy_db_schema::{
   },
   traits::Blockable,
 };
-use lemmy_db_views::structs::{CommunityFollowerView, CommunityModeratorView, LocalUserView};
-use lemmy_utils::error::{LemmyErrorExt, LemmyErrorType, LemmyResult};
+use lemmy_db_views_community_follower::CommunityFollowerView;
+use lemmy_db_views_community_moderator::CommunityModeratorView;
+use lemmy_db_views_local_user::LocalUserView;
+use lemmy_utils::error::LemmyResult;
 
 pub async fn get_my_user(
   local_user_view: LocalUserView,
@@ -40,8 +42,7 @@ pub async fn get_my_user(
     |pool| CommunityModeratorView::for_person(pool, person_id, Some(&local_user_view.local_user)),
     |pool| LocalUserKeywordBlock::read(pool, local_user_id),
     |pool| LocalUserLanguage::read(pool, local_user_id)
-  ))
-  .with_lemmy_type(LemmyErrorType::SystemErrLogin)?;
+  ))?;
 
   Ok(Json(MyUserInfo {
     local_user_view: local_user_view.clone(),

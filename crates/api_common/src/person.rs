@@ -14,14 +14,13 @@ use lemmy_db_schema::{
   PersonContentType,
 };
 use lemmy_db_schema_file::enums::{CommentSortType, ListingType, PostListingMode, PostSortType};
-use lemmy_db_views::structs::{
-  CommunityModeratorView,
-  InboxCombinedView,
-  LocalImageView,
-  PersonContentCombinedView,
-  PersonSavedCombinedView,
-  PersonView,
-};
+use lemmy_db_views_community_moderator::CommunityModeratorView;
+use lemmy_db_views_inbox_combined::InboxCombinedView;
+use lemmy_db_views_local_image::LocalImageView;
+use lemmy_db_views_person::PersonView;
+use lemmy_db_views_person_content_combined::PersonContentCombinedView;
+use lemmy_db_views_person_saved_combined::PersonSavedCombinedView;
+use lemmy_db_views_post::PostView;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 #[cfg(feature = "full")]
@@ -266,6 +265,8 @@ pub struct ListPersonContent {
   pub page_cursor: Option<PaginationCursor>,
   #[cfg_attr(feature = "full", ts(optional))]
   pub page_back: Option<bool>,
+  #[cfg_attr(feature = "full", ts(optional))]
+  pub limit: Option<i64>,
 }
 
 #[skip_serializing_none]
@@ -278,6 +279,8 @@ pub struct ListPersonContentResponse {
   /// the pagination cursor to use to fetch the next page
   #[cfg_attr(feature = "full", ts(optional))]
   pub next_page: Option<PaginationCursor>,
+  #[cfg_attr(feature = "full", ts(optional))]
+  pub prev_page: Option<PaginationCursor>,
 }
 
 #[skip_serializing_none]
@@ -292,6 +295,8 @@ pub struct ListPersonSaved {
   pub page_cursor: Option<PaginationCursor>,
   #[cfg_attr(feature = "full", ts(optional))]
   pub page_back: Option<bool>,
+  #[cfg_attr(feature = "full", ts(optional))]
+  pub limit: Option<i64>,
 }
 
 #[skip_serializing_none]
@@ -304,6 +309,64 @@ pub struct ListPersonSavedResponse {
   /// the pagination cursor to use to fetch the next page
   #[cfg_attr(feature = "full", ts(optional))]
   pub next_page: Option<PaginationCursor>,
+  #[cfg_attr(feature = "full", ts(optional))]
+  pub prev_page: Option<PaginationCursor>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "full", derive(TS))]
+#[cfg_attr(feature = "full", ts(export))]
+/// Gets your read posts.
+pub struct ListPersonRead {
+  #[cfg_attr(feature = "full", ts(optional))]
+  pub page_cursor: Option<PaginationCursor>,
+  #[cfg_attr(feature = "full", ts(optional))]
+  pub page_back: Option<bool>,
+  #[cfg_attr(feature = "full", ts(optional))]
+  pub limit: Option<i64>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "full", derive(TS))]
+#[cfg_attr(feature = "full", ts(export))]
+/// You read posts response.
+pub struct ListPersonReadResponse {
+  pub read: Vec<PostView>,
+  /// the pagination cursor to use to fetch the next page
+  #[cfg_attr(feature = "full", ts(optional))]
+  pub next_page: Option<PaginationCursor>,
+  #[cfg_attr(feature = "full", ts(optional))]
+  pub prev_page: Option<PaginationCursor>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "full", derive(TS))]
+#[cfg_attr(feature = "full", ts(export))]
+/// Gets your hidden posts.
+pub struct ListPersonHidden {
+  #[cfg_attr(feature = "full", ts(optional))]
+  pub page_cursor: Option<PaginationCursor>,
+  #[cfg_attr(feature = "full", ts(optional))]
+  pub page_back: Option<bool>,
+  #[cfg_attr(feature = "full", ts(optional))]
+  pub limit: Option<i64>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "full", derive(TS))]
+#[cfg_attr(feature = "full", ts(export))]
+/// You hidden posts response.
+pub struct ListPersonHiddenResponse {
+  pub hidden: Vec<PostView>,
+  /// the pagination cursor to use to fetch the next page
+  #[cfg_attr(feature = "full", ts(optional))]
+  pub next_page: Option<PaginationCursor>,
+  #[cfg_attr(feature = "full", ts(optional))]
+  pub prev_page: Option<PaginationCursor>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, Default, PartialEq, Eq)]
@@ -367,6 +430,8 @@ pub struct BannedPersonsResponse {
   /// the pagination cursor to use to fetch the next page
   #[cfg_attr(feature = "full", ts(optional))]
   pub next_page: Option<PaginationCursor>,
+  #[cfg_attr(feature = "full", ts(optional))]
+  pub prev_page: Option<PaginationCursor>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -410,6 +475,8 @@ pub struct ListInbox {
   pub page_cursor: Option<PaginationCursor>,
   #[cfg_attr(feature = "full", ts(optional))]
   pub page_back: Option<bool>,
+  #[cfg_attr(feature = "full", ts(optional))]
+  pub limit: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -421,6 +488,8 @@ pub struct ListInboxResponse {
   /// the pagination cursor to use to fetch the next page
   #[cfg_attr(feature = "full", ts(optional))]
   pub next_page: Option<PaginationCursor>,
+  #[cfg_attr(feature = "full", ts(optional))]
+  pub prev_page: Option<PaginationCursor>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, Default, PartialEq, Eq, Hash)]
@@ -541,7 +610,9 @@ pub struct UpdateTotpResponse {
 /// Get your user's image / media uploads.
 pub struct ListMedia {
   #[cfg_attr(feature = "full", ts(optional))]
-  pub page: Option<i64>,
+  pub page_cursor: Option<PaginationCursor>,
+  #[cfg_attr(feature = "full", ts(optional))]
+  pub page_back: Option<bool>,
   #[cfg_attr(feature = "full", ts(optional))]
   pub limit: Option<i64>,
 }
@@ -551,6 +622,11 @@ pub struct ListMedia {
 #[cfg_attr(feature = "full", ts(export))]
 pub struct ListMediaResponse {
   pub images: Vec<LocalImageView>,
+  /// the pagination cursor to use to fetch the next page
+  #[cfg_attr(feature = "full", ts(optional))]
+  pub next_page: Option<PaginationCursor>,
+  #[cfg_attr(feature = "full", ts(optional))]
+  pub prev_page: Option<PaginationCursor>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
