@@ -59,6 +59,10 @@ jobs:
             if [ $(git tag -l $tag-${{ env.POSTFIX }}) ]; then
               continue
             fi
+            if [[ ! "$tag" =~ ^[0-9.]+$ ]]; then
+              # just tag main versions.
+              continue
+            fi
             git checkout -b $tag $tag
             git submodule update --init
             git apply --verbose --whitespace=fix --3way /tmp/diff.patch || true
