@@ -1,8 +1,9 @@
 name: Sync repo with upstream
 
 on:
-  schedule:
-    - cron: "0 16 * * *" # every day at 16
+  # disabled temporarily
+  # schedule:
+  #  - cron: "0 16 * * *" # every day at 16
   workflow_dispatch: # on button click
 
 env:
